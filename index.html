@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nachhilfe-Planer</title>
+<!-- Favicon inline, damit es auch beim Öffnen als Datei (file://) erscheint -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2064%2064%22%20width=%2264%22%20height=%2264%22>%20<defs>%20<linearGradient%20id=%22g%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22>%20<stop%20offset=%220%22%20stop-color=%22%235b8cff%22/>%20<stop%20offset=%221%22%20stop-color=%22%232f5fe0%22/>%20</linearGradient>%20</defs>%20<rect%20width=%2264%22%20height=%2264%22%20rx=%2215%22%20fill=%22url%28%23g%29%22/>%20<path%20d=%22M32%2014%2059%2026%2032%2038%205%2026z%22%20fill=%22%23fff%22/>%20<path%20d=%22M17%2031.5V42c0%204.1%206.7%207.4%2015%207.4s15-3.3%2015-7.4V31.5L32%2040z%22%20fill=%22%23fff%22%20opacity=%22.72%22/>%20<path%20d=%22M55.5%2028v12%22%20stroke=%22%23fff%22%20stroke-width=%222.8%22%20stroke-linecap=%22round%22/>%20<circle%20cx=%2255.5%22%20cy=%2244.5%22%20r=%223.4%22%20fill=%22%23fff%22/>%20</svg>">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --panel2:#f0f2f5; --text:#14181f; --muted:#6b7480;
+  --line:#dfe3e8; --accent:#3b6ef5; --accent-t:#fff;
+  --ok:#1f9d55; --warn:#d99100; --bad:#d9453d;
+  --r:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12151a; --panel:#1a1f27; --panel2:#222833; --text:#e8ecf2; --muted:#96a0ae;
+        --line:#2c333f; --accent:#5b8cff; --ok:#35c07a; --warn:#e0a731; --bad:#ef5f57;}
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:7px 12px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button.danger{color:var(--bad)}
+input,select,textarea{font:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:70px;resize:vertical}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+h1,h2,h3{margin:0 0 8px}
+h2{font-size:19px}h3{font-size:15px}
+a{color:var(--accent)}
+.hidden{display:none!important}
+
+/* Lock screen */
+#lock{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50}
+#lock .box{width:min(400px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:26px}
+#lock p{color:var(--muted);font-size:13px}
+.err{color:var(--bad);font-size:13px;min-height:18px}
+
+/* Layout */
+header{display:flex;gap:10px;align-items:center;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+header .brand{font-weight:650;margin-right:6px;cursor:pointer}
+header .sp{flex:1}
+main{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:16px;align-items:start}
+main>aside,main>#content{min-width:0}
+main.full{grid-template-columns:1fr}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:14px}
+aside .item{padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center}
+aside .item:hover{background:var(--panel2)}
+aside .item.active{background:var(--accent);color:#fff}
+aside .item.active small{color:#dce6ff}
+small{color:var(--muted)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button{border-radius:20px;padding:6px 14px}
+.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}}
+.pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok);border-color:transparent}
+.pill.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn);border-color:transparent}
+.pill.bad{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad);border-color:transparent}
+.pill.acc{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);border-color:transparent}
+.list>div{border-top:1px solid var(--line);padding:11px 0}
+.list>div:first-child{border-top:none}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.kpi div{background:var(--panel2);border-radius:10px;padding:12px}
+.kpi b{display:block;font-size:22px}
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);color:var(--text);width:min(620px,94vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.chk{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--text);text-transform:none;letter-spacing:0;margin:4px 0}
+.chk input{width:auto}
+.muted-line{white-space:pre-wrap}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+@media print{header,aside,.tabs,button{display:none!important}main{display:block}.card{border:none;page-break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<!-- ============ SPERRBILDSCHIRM ============ -->
+<div id="lock">
+  <div class="box">
+    <h2 id="lockTitle">Nachhilfe-Planer</h2>
+    <p id="lockHint">Master-Passwort eingeben.</p>
+    <form id="lockForm">
+      <input type="text" id="userField" autocomplete="username" value="Nachhilfe-Planer" class="hidden" readonly>
+      <label>Master-Passwort</label>
+      <div class="row" style="gap:6px;flex-wrap:nowrap">
+        <input type="password" id="pw1" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus style="flex:1">
+        <button type="button" id="pwShow" title="Passwort anzeigen">👁</button>
+      </div>
+      <div id="pw2wrap" class="hidden">
+        <label>Passwort wiederholen</label>
+        <input type="password" id="pw2" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+      <label class="chk"><input type="checkbox" id="remember"> Automatisch entsperren (kein Passwort mehr eingeben)</label>
+      <div class="err" id="lockErr"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" type="submit" id="lockBtn">Entsperren</button>
+        <button type="button" class="ghost" id="importBtn">Backup einspielen</button>
+        <button type="button" class="ghost danger hidden" id="forgetBtn">Merken aufheben</button>
+      </div>
+    </form>
+    <p style="margin-top:16px">Alle Daten liegen <b>nur auf diesem Gerät</b>, AES-256-verschlüsselt.
+    Ohne Passwort gibt es keine Wiederherstellung – Backup machen!</p>
+    <p id="vaultIdWrap" class="hidden" style="margin-top:6px"><small>Tresor-ID hier: <code id="vaultId"></code>
+      <br>Zum Vergleichen: dieselbe ID sollte auch auf dem Gerät stehen, von dem das Backup stammt.</small></p>
+    <p id="resetWrap" class="hidden" style="margin-top:6px">
+      <a href="#" id="resetVault" style="color:var(--bad);font-size:13px">Tresor auf diesem Gerät zurücksetzen</a>
+      <br><small>Löscht nur die (leere/falsche) lokale Kopie hier – danach kannst du erneut „Backup einspielen“.</small>
+    </p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+<header>
+  <button id="sideBtn" title="Schülerliste ein-/ausklappen">☰</button>
+  <span class="brand" id="homeBtn">📚 Nachhilfe-Planer</span>
+  <input id="search" placeholder="Schüler suchen…" style="width:180px">
+  <span class="sp"></span>
+  <button id="earnBtn" title="Einnahmen im Überblick">💶 Einnahmen</button>
+  <button id="availBtn" title="Wochenverfügbarkeit aus dem Kalender-Server anzeigen">🗓 Verfügbarkeit</button>
+  <button id="calBtn" title="Termine aus Kalender-Datei (.ics) importieren">📅 Kalender</button>
+  <button id="discreetBtn" title="Namen ausblenden (nur Kürzel)">🕶 Diskret</button>
+  <button id="exportBtn">Backup</button>
+  <button id="pwChangeBtn" title="Master-Passwort ändern">🔑 Passwort</button>
+  <button id="lockNow">🔒 Sperren</button>
+</header>
+<main>
+  <aside>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">Schüler</h3>
+        <span><button class="primary" id="newStudent">+</button>
+        <button class="ghost" id="sideHide" title="Liste einklappen">◀</button></span>
+      </div>
+      <div id="studentList" style="margin-top:8px"></div>
+    </div>
+    <div class="card"><div id="jobNav"></div></div>
+  </aside>
+  <section id="content"></section>
+</main>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<input type="file" id="fileInput" accept=".npv,.json,application/json,text/plain,*/*" class="hidden">
+<input type="file" id="icsInput" accept=".ics,text/calendar" class="hidden">
+<input type="file" id="gsaInput" accept=".json,application/json" class="hidden">
+
+<script>
+"use strict";
+/* ========== Krypto (WebCrypto: PBKDF2 + AES-GCM) ========== */
+const VKEY="np_vault_v1", PWKEY="np_pw_v1", ITER=250000;
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+
+async function deriveKey(pw,salt){
+  // NFC-Normalisierung: Umlaute/Akzente/Sonderzeichen koennen je nach Gerät/
+  // Tastatur/Copy-Paste als unterschiedliche, aber optisch identische Byte-
+  // folgen ankommen (z.B. "e"+Akzent vs. "é" als ein Zeichen). Ohne das hier
+  // waere derselbe sichtbare Text auf zwei Geraeten manchmal ein anderer Key.
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw.normalize("NFC")),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:ITER,hash:"SHA-256"},base,
+    {name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptDB(key,salt,data){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(data)));
+  return {v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)};
+}
+async function decryptVault(key,vault){
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:ub64(vault.iv)},key,ub64(vault.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+/* ========== State ========== */
+let KEY=null, SALT=null, DB=null, sel=null, tab="uebersicht", discreet=false, lockTimer=null;
+const LOCK_MIN=10;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
+const deDate=d=>d?d.split("-").reverse().join("."):"";
+const eur=n=>(Number(n)||0).toFixed(2).replace(".",",")+" €";
+
+async function save(){
+  const vault=await encryptDB(KEY,SALT,DB);
+  localStorage.setItem(VKEY,JSON.stringify(vault));
+}
+function students(){return DB.students}
+function stu(){return DB.students.find(s=>s.id===sel)}
+function dispName(s){return discreet?(s.kuerzel||s.name.split(" ").map(w=>w[0]).join("")):s.name}
+
+/* ========== Lock / Unlock ========== */
+const $=id=>document.getElementById(id);
+const hasVault=()=>!!localStorage.getItem(VKEY);
+
+/* Gemerktes Passwort: bewusst im Klartext auf diesem Gerät.
+   Damit ist der Tresor nur noch gegen fremde Blicke geschützt,
+   nicht mehr gegen jemanden mit Zugriff auf diesen Benutzer. */
+const savedPw=()=>localStorage.getItem(PWKEY);
+
+function initLockUI(){
+  const neu=!hasVault(), pw=savedPw();
+  $("lockTitle").textContent=neu?"Willkommen 👋":"Nachhilfe-Planer";
+  $("lockHint").textContent=neu?"Lege ein Master-Passwort fest. Es verschlüsselt alle Schülerdaten."
+    :pw?"Automatisches Entsperren ist aktiv.":"Master-Passwort eingeben.";
+  $("pw2wrap").classList.toggle("hidden",!neu);
+  $("lockBtn").textContent=neu?"Tresor anlegen":"Entsperren";
+  $("importBtn").classList.toggle("hidden",!neu);
+  $("forgetBtn").classList.toggle("hidden",!pw);
+  $("resetWrap").classList.toggle("hidden",neu);
+  $("vaultIdWrap").classList.toggle("hidden",neu);
+  if(!neu){
+    // Kurze, eindeutige Kennung des Tresors (aus dem Salt) – rein zum
+    // Abgleichen zwischen Geräten, verrät weder Passwort noch Daten.
+    try{ $("vaultId").textContent=JSON.parse(localStorage.getItem(VKEY)).salt.slice(0,8); }
+    catch{ $("vaultId").textContent="—"; }
+  }
+  $("remember").checked=!!pw;
+  $("pw1").value=pw||"";
+  if(pw) $("lockBtn").focus(); else $("pw1").focus();
+}
+/* Passwort ein-/ausblenden – gerade auf dem Handy/iPad-Keyboard tippt man
+   sich sonst leicht vertippt, ohne es zu merken (Feld zeigt nur Punkte). */
+$("pwShow").onclick=()=>{
+  const zeigen=$("pw1").type==="password";
+  $("pw1").type=zeigen?"text":"password";
+  $("pwShow").textContent=zeigen?"🙈":"👁";
+};
+$("forgetBtn").onclick=()=>{ localStorage.removeItem(PWKEY); $("pw1").value=""; initLockUI(); };
+$("resetVault").onclick=e=>{
+  e.preventDefault();
+  if(!confirm("Nur die lokale Kopie AUF DIESEM GERÄT löschen?\n\nDeine eigentlichen Daten sind davon nicht betroffen, solange du ein Backup (.npv) hast – danach einfach neu einspielen."))
+    return;
+  localStorage.removeItem(VKEY); localStorage.removeItem(PWKEY);
+  $("pw1").value=""; $("pw2").value=""; $("lockErr").textContent="";
+  initLockUI();
+};
+$("remember").onchange=()=>{
+  if($("remember").checked&&!confirm("Beim Start automatisch entsperren?\n\nDas Passwort wird dazu im Klartext auf diesem Gerät gespeichert – jeder mit Zugriff auf deinen Mac-Benutzer kann die Schülerdaten dann öffnen. Die Auto-Sperre nach 10 Minuten entfällt."))
+    $("remember").checked=false;
+  if(!$("remember").checked) localStorage.removeItem(PWKEY);
+};
+$("lockForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const pw=$("pw1").value, err=$("lockErr"), merken=$("remember").checked;
+  err.textContent="";
+  if(!hasVault()){
+    if(pw.length<8) return err.textContent="Mindestens 8 Zeichen.";
+    if(pw!==$("pw2").value) return err.textContent="Passwörter stimmen nicht überein.";
+    try{
+      SALT=crypto.getRandomValues(new Uint8Array(16));
+      KEY=await deriveKey(pw,SALT);
+      DB=pendingImportDB||{students:[],created:today()};
+      pendingImportDB=null;
+      await save();
+      if(merken) localStorage.setItem(PWKEY,pw);
+      openApp();
+    }catch(ex){
+      console.error(ex);
+      err.textContent="Fehler beim Anlegen: "+(ex&&ex.message?ex.message:ex);
+    }
+  }else{
+    const vault=JSON.parse(localStorage.getItem(VKEY));
+    SALT=ub64(vault.salt);
+    $("lockBtn").textContent="…";
+    try{
+      KEY=await deriveKey(pw,SALT);
+      DB=await decryptVault(KEY,vault);
+      if(merken) localStorage.setItem(PWKEY,pw); else localStorage.removeItem(PWKEY);
+      openApp();
+    }catch{ err.textContent="Falsches Passwort."; KEY=null; localStorage.removeItem(PWKEY); }
+    $("lockBtn").textContent="Entsperren";
+  }
+  $("pw2").value="";
+  if(!savedPw()) $("pw1").value="";
+});
+/* Einmalige Umstellung bestehender Profile auf 60 min / 15 € */
+async function migrateDefaults(){
+  let dirty=false;
+  if(!DB.jobs){ DB.jobs=[]; dirty=true; }
+  if(!DB.todos){ DB.todos=[]; dirty=true; }
+  if(DB.jobName===undefined){ DB.jobName="Flower Shop"; DB.jobSatz=10; DB.jobKeys="flower shop, blumen"; dirty=true; }
+  if(!DB.defaultsV2){
+    students().forEach(s=>{ if(!s.dauer||+s.dauer===45) s.dauer=60; if(!(+s.satz)) s.satz=15; });
+    DB.defaultsV2=1; dirty=true;
+  }
+  if(!DB.defaultsV3){
+    students().forEach(s=>{ if(!s.vermittlung) s.vermittlung="Privat"; });
+    DB.defaultsV3=1; dirty=true;
+  }
+  if(dirty) await save();
+}
+async function openApp(){
+  $("lock").classList.add("hidden"); $("app").classList.remove("hidden");
+  sel=null; tab="uebersicht"; await migrateDefaults(); render(); resetLockTimer();
+}
+function lock(){
+  KEY=null; DB=null; sel=null;
+  $("app").classList.add("hidden"); $("lock").classList.remove("hidden");
+  initLockUI(); $("lockErr").textContent=""; $("pw1").focus();
+}
+function resetLockTimer(){
+  clearTimeout(lockTimer);
+  /* Bei automatischem Entsperren waere die Auto-Sperre sinnlos. */
+  if(KEY&&!savedPw()) lockTimer=setTimeout(lock,LOCK_MIN*60000);
+}
+["click","keydown","mousemove","touchstart"].forEach(ev=>document.addEventListener(ev,resetLockTimer,{passive:true}));
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden&&KEY&&!savedPw()) setTimeout(()=>{if(document.hidden&&!savedPw())lock()},60000); });
+
+/* ========== Modal ========== */
+function modal(title,html,onSubmit,submitLabel="Speichern"){
+  const f=$("dlgForm");
+  f.innerHTML=`<h2>${esc(title)}</h2>${html}
+    <div class="dlg-actions">
+      <button type="button" value="cancel" id="dlgCancel">Abbrechen</button>
+      <button class="primary" value="ok">${esc(submitLabel)}</button>
+    </div>`;
+  const d=$("dlg");
+  f.onsubmit=async e=>{
+    e.preventDefault();
+    const data=Object.fromEntries(new FormData(f).entries());
+    f.querySelectorAll('input[type=checkbox]').forEach(c=>{ if(!c.name)return;
+      if(c.dataset.multi){ data[c.name]=[...f.querySelectorAll(`input[name="${c.name}"]:checked`)].map(x=>x.value); }
+      else data[c.name]=c.checked; });
+    if(await onSubmit(data)!==false){ d.close(); await save(); render(); }
+  };
+  $("dlgCancel").onclick=()=>d.close();
+  d.showModal();
+}
+const fld=(l,n,v="",t="text",extra="")=>`<label>${l}</label><input name="${n}" type="${t}" value="${esc(v)}" ${extra}>`;
+const area=(l,n,v="")=>`<label>${l}</label><textarea name="${n}">${esc(v)}</textarea>`;
+const sel_=(l,n,v,opts)=>`<label>${l}</label><select name="${n}">${opts.map(o=>`<option value="${o[0]}" ${o[0]===v?"selected":""}>${o[1]}</option>`).join("")}</select>`;
+
+/* ========== Render ========== */
+const JOB="__job__";
+const EARN="__earn__";
+const VERMITTLUNGEN=["Privat","TutorSpace","CleverCoach"];
+function jobCfg(){ return {name:DB.jobName||"Nebentätigkeit", satz:+DB.jobSatz||10, keys:DB.jobKeys||""}; }
+function jobs(){ return DB.jobs ||= []; }
+
+function render(){
+  renderSidebar();
+  $("content").innerHTML = sel===JOB ? viewJobs() : sel===AVAIL ? viewAvailability() : sel===EARN ? viewEarnings()
+    : (sel&&stu() ? viewStudent(stu()) : viewDashboard());
+  bind();
+  if(sel===AVAIL) mountAvailability();
+}
+function renderSidebar(){
+  const q=$("search").value.toLowerCase();
+  const list=students().filter(s=>!q||dispName(s).toLowerCase().includes(q)||(s.faecher||"").toLowerCase().includes(q))
+    .sort((a,b)=>Number(b.aktiv!==false)-Number(a.aktiv!==false)||a.name.localeCompare(b.name));
+  $("studentList").innerHTML = list.length?list.map(s=>{
+    const off=openCount(s);
+    return `<div class="item ${s.id===sel?"active":""}" data-s="${s.id}">
+      <span>${esc(dispName(s))}<br><small>${esc(s.klasse||"")} ${esc(s.faecher||"")} · ${esc(s.vermittlung||"Privat")}</small></span>
+      ${off?`<span class="pill bad">${off}</span>`:""}</div>`;
+  }).join(""):`<div class="empty">Noch keine Schüler.</div>`;
+  const j=jobCfg(), offenJ=jobs().filter(x=>!x.bezahlt).length;
+  $("jobNav").innerHTML=`<div class="item ${sel===JOB?"active":""}" data-s="${JOB}">
+    <span>🌸 ${esc(j.name)}<br><small>Nebentätigkeit · ${eur(j.satz)}/h</small></span>
+    ${offenJ?`<span class="pill warn">${offenJ}</span>`:""}</div>`;
+}
+function openCount(s){ // wackelige/offene Themen
+  return (s.topics||[]).filter(t=>t.status!=="sicher").length;
+}
+function sessionsSorted(s,status){
+  return (s.sessions||[]).filter(x=>!status||x.status===status)
+    .sort((a,b)=>(b.datum+(b.uhrzeit||"")).localeCompare(a.datum+(a.uhrzeit||"")));
+}
+/* Ende eines Termins als Zeitstempel; ohne Uhrzeit zaehlt der ganze Tag. */
+function sessEnd(x){
+  const [Y,M,D]=x.datum.split("-").map(Number);
+  const [h,mi]=(x.uhrzeit||"").split(":").map(Number);
+  return (x.uhrzeit&&!isNaN(h))
+    ? new Date(Y,M-1,D,h,mi||0).getTime()+(+x.dauer||60)*60000
+    : new Date(Y,M-1,D,23,59,59).getTime();
+}
+const istVorbei=x=>sessEnd(x)<Date.now();
+
+function nextSession(s){
+  return (s.sessions||[]).filter(x=>x.status==="geplant"&&!istVorbei(x))
+    .sort((a,b)=>(a.datum+(a.uhrzeit||"")).localeCompare(b.datum+(b.uhrzeit||"")))[0];
+}
+
+/* ---------- Dashboard ---------- */
+let dashPeriod="monat";
+const summe=xs=>xs.reduce((a,x)=>a+(+x.preis||0),0);
+const zeitstunden=xs=>xs.reduce((a,x)=>a+(+x.dauer||60),0)/60;
+const stdFmt=h=>(Math.round(h*10)/10).toString().replace(".",",");
+
+/* Themen, die in einem geplanten Termin dran sind: gesetzte Themen,
+   sonst automatisch die noch nicht sicheren des Schülers. */
+function terminThemen(x){
+  const t=x.s.topics||[];
+  const gesetzt=(x.themen||[]).length?t.filter(o=>x.themen.includes(o.id)):[];
+  return gesetzt.length?gesetzt:t.filter(o=>o.status!=="sicher").slice(0,4);
+}
+
+function viewDashboard(){
+  const all=[];
+  students().forEach(s=>(s.sessions||[]).forEach(x=>all.push({...x,s})));
+  const done=all.filter(x=>x.status==="erledigt");
+  const heute=today(), m=heute.slice(0,7);
+  const p=done.filter(x=>x.datum.startsWith(m));
+
+  const geplant=all.filter(x=>x.status==="geplant");
+  const upcoming=geplant.filter(x=>!istVorbei(x)).sort((a,b)=>(a.datum+(a.uhrzeit||"")).localeCompare(b.datum+(b.uhrzeit||""))).slice(0,6);
+  const ueberfaellig=geplant.filter(istVorbei).sort((a,b)=>(b.datum+(b.uhrzeit||"")).localeCompare(a.datum+(a.uhrzeit||"")));
+
+  return `
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Übersicht</h2>
+      <a href="#" id="gotoEarn"><small>💶 Alle Einnahmen ansehen ›</small></a>
+    </div>
+    <div class="kpi" style="margin-top:12px">
+      <div><small>Stunden diesen Monat</small><b>${p.length}</b><small>${stdFmt(zeitstunden(p))} Zeitstunden</small></div>
+      <div><small>Verdient diesen Monat</small><b>${eur(summe(p))}</b><small>davon bezahlt: ${eur(summe(p.filter(x=>x.bezahlt)))}</small></div>
+      <div><small>Aktive Schüler</small><b>${students().filter(s=>s.aktiv!==false).length}</b><small>${geplant.length} Termine geplant</small></div>
+    </div>
+  </div>
+  ${ueberfaellig.length?`<div class="card"><h3>Noch nicht nachbereitet</h3>
+    <small>Diese Termine sind vorbei, stehen aber noch auf <b>geplant</b>. Eintragen, was gemacht wurde –
+    danach verschwinden sie hier und zählen in Stunden und Umsatz.</small>
+    <div class="list" style="margin-top:8px">
+    ${ueberfaellig.slice(0,5).map(x=>`<div class="row" style="justify-content:space-between">
+      <span><b>${deDate(x.datum)}</b> ${esc(x.uhrzeit||"")} · <a href="#" data-s="${x.s.id}">${esc(dispName(x.s))}</a></span>
+      <button class="primary" data-nachber="${x.s.id}|${x.id}">Nachbereiten</button></div>`).join("")}
+    ${ueberfaellig.length>5?`<div><small>… und ${ueberfaellig.length-5} weitere</small></div>`:""}
+  </div></div>`:""}
+  <div class="grid2">
+    <div class="card"><h3>Anstehende Termine</h3><div class="list">
+      ${upcoming.length?upcoming.map(x=>{
+        const th=terminThemen(x);
+        const last=sessionsSorted(x.s,"erledigt")[0];
+        return `<div>
+        <div class="row" style="justify-content:space-between">
+          <span><b>${deDate(x.datum)}</b> ${esc(x.uhrzeit||"")} · <a href="#" data-s="${x.s.id}">${esc(dispName(x.s))}</a></span>
+          <span class="pill">${x.dauer||60} min</span>
+        </div>
+        ${th.length?`<div style="margin-top:4px">${th.map(t=>`<span class="pill ${t.status==="sicher"?"ok":t.status==="wackelig"?"warn":"bad"}">${esc(t.name)}</span>`).join(" ")}</div>`:""}
+        ${x.plan?`<div><small>Plan: ${esc(x.plan.slice(0,90))}</small></div>`
+          :last&&last.offen?`<div><small>Üben: ${esc(last.offen.slice(0,90))}</small></div>`:""}
+      </div>`}).join(""):`<div class="empty">Keine geplanten Termine.</div>`}
+    </div></div>
+    ${viewTodoCard()}
+  </div>`;
+}
+
+function viewEarnings(){
+  const all=[];
+  students().forEach(s=>(s.sessions||[]).forEach(x=>all.push({...x,s})));
+  const done=all.filter(x=>x.status==="erledigt");
+  const heute=today(), m=heute.slice(0,7), y=heute.slice(0,4);
+  const filt={monat:x=>x.datum.startsWith(m),jahr:x=>x.datum.startsWith(y),gesamt:()=>true}[dashPeriod];
+  const p=done.filter(filt);
+  const labelP={monat:"diesen Monat",jahr:"dieses Jahr",gesamt:"insgesamt"}[dashPeriod];
+  const offenGeld=summe(done.filter(x=>!x.bezahlt));
+
+  /* letzte 6 Monate: Nachhilfe UND Nebentätigkeit getrennt, wie bei "diesen Monat" oben. */
+  const mon={};
+  done.forEach(x=>{const k=x.datum.slice(0,7);(mon[k] ||= {sess:[],job:[]}).sess.push(x)});
+  jobs().forEach(x=>{const k=x.datum.slice(0,7);(mon[k] ||= {sess:[],job:[]}).job.push(x)});
+  const verlauf=Object.entries(mon).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6);
+  const maxUms=Math.max(1,...verlauf.map(([,v])=>summe(v.sess)+summe(v.job)));
+
+  return `
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">💶 Einnahmen</h2>
+      <select id="periodSel" style="width:auto">
+        <option value="monat" ${dashPeriod==="monat"?"selected":""}>Dieser Monat</option>
+        <option value="jahr" ${dashPeriod==="jahr"?"selected":""}>Dieses Jahr</option>
+        <option value="gesamt" ${dashPeriod==="gesamt"?"selected":""}>Gesamt</option>
+      </select>
+    </div>
+    <div class="kpi" style="margin-top:12px">
+      <div><small>Stunden ${labelP}</small><b>${p.length}</b><small>${stdFmt(zeitstunden(p))} Zeitstunden</small></div>
+      <div><small>Verdient ${labelP}</small><b>${eur(summe(p))}</b><small>davon bezahlt: ${eur(summe(p.filter(x=>x.bezahlt)))}</small></div>
+      <div id="kpiOpen" style="cursor:pointer" title="Klicken: Zahlungen abhaken"><small>Offen (unbezahlt) ›</small><b style="color:${offenGeld?"var(--bad)":"inherit"}">${eur(offenGeld)}</b><small>über alle Zeiträume</small></div>
+    </div>
+    ${(()=>{ const jc=jobCfg(), jp=jobs().filter(filt);
+      if(!jobs().length) return "";
+      return `<div class="row" style="justify-content:space-between;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <span>🌸 <a href="#" data-s="${JOB}">${esc(jc.name)}</a> <small>(nicht in den Nachhilfe-Zahlen)</small><br>
+          <small>${jp.length} Einsätze · ${stdFmt(zeitstunden(jp))} h</small></span>
+        <span style="text-align:right"><b>${eur(summe(jp))}</b><br>
+          <small>Gesamt ${labelP}: <b>${eur(summe(p)+summe(jp))}</b></small></span>
+      </div>`; })()}
+    ${(()=>{ if(!p.length) return "";
+      const gr={}; p.forEach(x=>{ const k=x.s.vermittlung||"Privat"; (gr[k] ||= []).push(x); });
+      const kats=VERMITTLUNGEN.filter(k=>gr[k]).concat(Object.keys(gr).filter(k=>!VERMITTLUNGEN.includes(k)));
+      if(kats.length<2) return "";
+      const maxK=Math.max(1,...kats.map(k=>summe(gr[k])));
+      return `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <small>Nachhilfe nach Vermittlung ${labelP}</small>
+        <div class="list" style="margin-top:6px">
+        ${kats.map(k=>`<div class="row" style="justify-content:space-between;gap:12px">
+          <span style="width:100px">${esc(k)}</span>
+          <span style="flex:1;min-width:80px;background:var(--panel2);border-radius:99px;height:8px;overflow:hidden">
+            <span style="display:block;height:8px;width:${Math.round(summe(gr[k])/maxK*100)}%;background:var(--accent)"></span></span>
+          <span><small>${gr[k].length} Std</small> &nbsp;<b>${eur(summe(gr[k]))}</b></span>
+        </div>`).join("")}</div>
+      </div>`; })()}
+  </div>
+  ${verlauf.length?(()=>{ const jc=jobCfg();
+    return `<div class="card"><h3>Verlauf (letzte 6 Monate)</h3><div class="list" style="margin-top:6px">
+    ${verlauf.map(([k,v])=>{
+      const su=summe(v.sess), ju=summe(v.job), pctS=Math.round(su/maxUms*100), pctJ=Math.round(ju/maxUms*100);
+      return `<div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
+        <div class="row" style="justify-content:space-between;gap:12px">
+          <span style="width:80px">${k.split("-").reverse().join("/")}</span>
+          <span style="flex:1;min-width:80px;background:var(--panel2);border-radius:99px;height:8px;overflow:hidden;display:flex">
+            <span style="display:block;height:8px;width:${pctS}%;background:var(--accent)"></span>
+            <span style="display:block;height:8px;width:${pctJ}%;background:var(--warn)"></span>
+          </span>
+          <span><b>${eur(su+ju)}</b></span>
+        </div>
+        <div class="row" style="justify-content:space-between;gap:12px;padding-left:92px">
+          <small>${v.sess.length} Std · ${stdFmt(zeitstunden(v.sess))} h · Nachhilfe ${eur(su)}</small>
+          ${v.job.length?`<small>🌸 ${v.job.length} Einsätze · ${stdFmt(zeitstunden(v.job))} h · ${jc.name} ${eur(ju)}</small>`:""}
+        </div>
+      </div>`;
+    }).join("")}</div></div>`; })():""}`;
+}
+
+/* ---------- To-Do: eigene Aufgaben (nicht die der Schüler) ---------- */
+function todos(){ return DB.todos ||= []; }
+function viewTodoCard(){
+  const offen=todos().filter(x=>!x.erledigt)
+    .sort((a,b)=>(a.faellig||"9999-99-99").localeCompare(b.faellig||"9999-99-99"));
+  const fertig=todos().filter(x=>x.erledigt).slice(-3).reverse();
+  const opts=students().map(s=>`<option value="${s.id}">${esc(dispName(s))}</option>`).join("");
+  const spaet=x=>x.faellig&&x.faellig<today();
+  return `<div class="card"><div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">To-Do</h3>
+      <span class="pill ${offen.filter(spaet).length?"bad":offen.length?"acc":"ok"}">${offen.length} offen</span></div>
+    <small>Deine eigenen Aufgaben: Material vorbereiten, Eltern anrufen, Kopien machen …</small>
+    <div class="row" style="margin-top:8px;gap:6px;flex-wrap:nowrap">
+      <input id="todoText" placeholder="Neue Aufgabe …" style="flex:1">
+      <button class="primary" id="todoAdd">+</button>
+    </div>
+    <div class="row" style="margin-top:6px;gap:6px">
+      <input id="todoDate" type="date" style="width:auto" title="Fällig am (optional)">
+      <select id="todoStud" style="width:auto"><option value="">– ohne Schüler –</option>${opts}</select>
+    </div>
+    <div class="list" style="margin-top:10px">
+    ${offen.length?offen.map(x=>{
+      const s=students().find(o=>o.id===x.studentId);
+      return `<div class="row" style="justify-content:space-between">
+        <label class="chk" style="flex:1;min-width:150px"><input type="checkbox" data-tdone="${x.id}">
+          <span>${esc(x.text)}${s?`<br><small>${esc(dispName(s))}</small>`:""}</span></label>
+        <span>${x.faellig?`<span class="pill ${spaet(x)?"bad":"acc"}">${deDate(x.faellig)}</span>`:""}
+        <button class="ghost danger" data-tdel="${x.id}">✕</button></span>
+      </div>`}).join(""):`<div class="empty">Nichts offen 🎉</div>`}
+    ${fertig.map(x=>`<div class="row" style="justify-content:space-between;opacity:.55">
+      <span style="text-decoration:line-through">${esc(x.text)}</span>
+      <span><button class="ghost" data-tundo="${x.id}" title="wieder öffnen">↩</button>
+      <button class="ghost danger" data-tdel="${x.id}">✕</button></span>
+    </div>`).join("")}
+    </div></div>`;
+}
+
+/* ---------- Zahlungen abhaken (aus dem Dashboard-Feld "Offen") ---------- */
+function payModal(){
+  const eintraege=[];
+  students().forEach(s=>(s.sessions||[]).filter(x=>x.status==="erledigt").forEach(x=>
+    eintraege.push({id:`s|${s.id}|${x.id}`,datum:x.datum,titel:dispName(s),
+      sub:`${x.dauer||60} min${x.uhrzeit?" · "+x.uhrzeit:""}`,preis:+x.preis||0,bezahlt:!!x.bezahlt,ref:x})));
+  jobs().forEach(x=>eintraege.push({id:`j|${x.id}`,datum:x.datum,titel:"🌸 "+jobCfg().name,
+    sub:`${x.dauer||60} min${x.notiz?" · "+x.notiz:""}`,preis:+x.preis||0,bezahlt:!!x.bezahlt,ref:x}));
+  eintraege.sort((a,b)=>b.datum.localeCompare(a.datum));
+
+  const zeile=e=>`<div class="row payrow ${e.bezahlt?"isPaid":""}" data-row="${e.id}"
+      style="justify-content:space-between;border-top:1px solid var(--line);padding:8px 0;${e.bezahlt?"opacity:.5":""}">
+      <span><b>${deDate(e.datum)}</b> · ${esc(e.titel)}<br><small>${esc(e.sub)}</small></span>
+      <span>${eur(e.preis)}
+      <label class="chk" style="display:inline-flex;margin:0 0 0 8px">
+        <input type="checkbox" data-paychk="${e.id}" ${e.bezahlt?"checked":""}> bezahlt</label></span>
+    </div>`;
+
+  modal("Zahlungen",
+    `<div class="row" style="justify-content:space-between">
+       <label class="chk" style="margin:0"><input type="checkbox" id="payOnlyOpen" checked> nur offene anzeigen</label>
+       <span id="paySum" class="pill"></span></div>
+     <div style="max-height:52vh;overflow:auto;margin-top:8px">
+       ${eintraege.length?eintraege.map(zeile).join(""):`<div class="empty">Noch keine erledigten Stunden.</div>`}
+     </div>
+     <p><small>Häkchen wirken sofort. Nachhilfe und Nebentätigkeit stehen zusammen in der Liste,
+     werden in den Kennzahlen aber getrennt gezählt.</small></p>`,
+    ()=>true,"Fertig");
+
+  const f=$("dlgForm");
+  const sumUp=()=>{
+    const offenN=eintraege.filter(e=>!e.bezahlt&&e.id[0]==="s").reduce((a,e)=>a+e.preis,0);
+    const offenJ=eintraege.filter(e=>!e.bezahlt&&e.id[0]==="j").reduce((a,e)=>a+e.preis,0);
+    const el=$("paySum");
+    el.textContent=`offen: ${eur(offenN)}${offenJ?` + ${eur(offenJ)} Nebenjob`:""}`;
+    el.className="pill "+((offenN+offenJ)?"bad":"ok");
+  };
+  const filter=()=>{ const nur=$("payOnlyOpen").checked;
+    f.querySelectorAll(".payrow").forEach(r=>{ r.style.display=(nur&&r.classList.contains("isPaid"))?"none":""; }); };
+
+  f.querySelectorAll("[data-paychk]").forEach(c=>c.onchange=async()=>{
+    const e=eintraege.find(o=>o.id===c.dataset.paychk);
+    e.bezahlt=c.checked; e.ref.bezahlt=c.checked;
+    const r=f.querySelector(`[data-row="${e.id}"]`);
+    r.classList.toggle("isPaid",c.checked); r.style.opacity=c.checked?.5:1;
+    sumUp(); await save();
+  });
+  $("payOnlyOpen").onchange=filter;
+  sumUp(); filter();
+}
+
+/* ---------- Nebentätigkeit (getrennt von der Nachhilfe) ---------- */
+function viewJobs(){
+  const j=jobCfg(), list=jobs().slice().sort((a,b)=>b.datum.localeCompare(a.datum));
+  const m=today().slice(0,7), monat=list.filter(x=>x.datum.startsWith(m));
+  const offen=list.filter(x=>!x.bezahlt);
+  const mon={};list.forEach(x=>{const k=x.datum.slice(0,7);(mon[k] ||= []).push(x)});
+  return `<div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">🌸 ${esc(j.name)}</h2>
+      <div class="row"><button class="primary" id="newJob">+ Eintrag</button><button id="jobSettings">Einstellungen</button></div>
+    </div>
+    <div class="card">
+      <p><small>Wird bewusst getrennt geführt – taucht in keiner Schüler- oder Nachhilfe-Statistik auf.</small></p>
+      <div class="kpi">
+        <div><small>Einsätze gesamt</small><b>${list.length}</b><small>${stdFmt(zeitstunden(list))} Zeitstunden</small></div>
+        <div><small>Verdient gesamt</small><b>${eur(summe(list))}</b><small>diesen Monat: ${eur(summe(monat))}</small></div>
+        <div><small>Offen</small><b style="color:${offen.length?"var(--bad)":"inherit"}">${eur(summe(offen))}</b><small>${offen.length} Eintrag/Einträge</small></div>
+      </div>
+    </div>
+    ${Object.entries(mon).sort((a,b)=>b[0].localeCompare(a[0])).map(([k,xs])=>`
+      <div class="card"><div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">${k.split("-").reverse().join("/")}</h3>
+        <span>${xs.length} × · ${stdFmt(zeitstunden(xs))} h · <b>${eur(summe(xs))}</b>
+        <button data-jpayall="${k}">alle bezahlt</button></span></div>
+        <div class="list" style="margin-top:8px">
+        ${xs.map(x=>`<div class="row" style="justify-content:space-between">
+          <span><b>${deDate(x.datum)}</b> ${esc(x.uhrzeit||"")} · ${x.dauer||60} min${x.notiz?`<br><small>${esc(x.notiz)}</small>`:""}</span>
+          <span>${eur(x.preis)}
+          <button data-jpay="${x.id}" class="pill ${x.bezahlt?"ok":"warn"}" style="border:none">${x.bezahlt?"bezahlt":"offen"}</button>
+          <button class="ghost" data-jedit="${x.id}">✎</button><button class="ghost danger" data-jdel="${x.id}">✕</button></span>
+        </div>`).join("")}</div></div>`).join("")||`<div class="empty">Noch keine Einträge.</div>`}`;
+}
+
+function jobModal(x){
+  const n=!x, j=jobCfg();
+  const v={datum:today(),uhrzeit:"",dauer:60,...(x||{})};
+  if(n) v.preis=Math.round(v.dauer/60*j.satz*100)/100;
+  modal(n?"Neuer Eintrag":"Eintrag bearbeiten",
+    `<div class="grid2"><div>${fld("Datum","datum",v.datum,"date")}</div><div>${fld("Uhrzeit","uhrzeit",v.uhrzeit,"time")}</div>
+     <div>${fld("Dauer (min)","dauer",v.dauer,"number")}</div><div>${fld("Verdienst €","preis",v.preis??"","number",'step="0.5"')}</div></div>
+     ${fld("Notiz","notiz",v.notiz||"")}
+     <label class="chk"><input type="checkbox" name="bezahlt" ${v.bezahlt?"checked":""}> bezahlt</label>
+     <p><small>Vorschlag aus Stundensatz: <span id="jobHint">–</span></small></p>`,
+    d=>{ if(n) jobs().push({id:uid(),...d}); else Object.assign(x,d); });
+  const f=$("dlgForm"), upd=()=>{ const dm=+f.querySelector("[name=dauer]").value||0;
+    $("jobHint").textContent=`${stdFmt(dm/60)} h × ${eur(j.satz)} = ${eur(dm/60*j.satz)}`; };
+  f.addEventListener("input",upd); upd();
+}
+
+function jobSettingsModal(){
+  const j=jobCfg();
+  modal("Nebentätigkeit – Einstellungen",
+    `${fld("Bezeichnung","jobName",j.name)}
+     ${fld("Stundensatz €/h","jobSatz",j.satz,"number",'step="0.5"')}
+     ${fld("Stichwörter für den Kalender-Import (Komma)","jobKeys",j.keys)}
+     <p><small>Termine, deren Titel eines dieser Stichwörter enthält, werden beim Import
+     automatisch dieser Nebentätigkeit zugeordnet statt einem Schüler.</small></p>`,
+    d=>{ DB.jobName=d.jobName.trim()||"Nebentätigkeit"; DB.jobSatz=+d.jobSatz||10; DB.jobKeys=d.jobKeys; });
+}
+
+/* ---------- Schüler ---------- */
+function viewStudent(s){
+  const tabs=[["uebersicht","Übersicht"],["vorbereitung","Nächste Stunde"],["sitzungen","Sitzungen"],["themen","Themen"],["abrechnung","Abrechnung"]];
+  return `<div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">${esc(dispName(s))} <span class="pill">${esc(s.vermittlung||"Privat")}</span>${s.aktiv===false?' <span class="pill">inaktiv</span>':""}</h2>
+      <div class="row"><button id="editStudent">Bearbeiten</button><button class="danger" id="delStudent">Löschen</button></div>
+    </div>
+    <div class="tabs">${tabs.map(t=>`<button data-tab="${t[0]}" class="${tab===t[0]?"active":""}">${t[1]}</button>`).join("")}</div>
+    ${({uebersicht:tabUeber,vorbereitung:tabVorb,sitzungen:tabSess,themen:tabTopics,abrechnung:tabBill}[tab]||tabUeber)(s)}`;
+}
+
+function tabUeber(s){
+  const n=nextSession(s), last=sessionsSorted(s,"erledigt")[0];
+  return `<div class="grid2">
+    <div class="card"><h3>Stammdaten</h3>
+      <div class="list">
+        <div><small>Klasse / Schule</small><br>${esc(s.klasse||"–")} · ${esc(s.schule||"–")}</div>
+        <div><small>Fächer</small><br>${esc(s.faecher||"–")}</div>
+        <div><small>Stundensatz / Dauer</small><br>${eur(s.satz)} · ${esc(s.dauer||60)} min</div>
+        <div><small>Vermittlung</small><br>${esc(s.vermittlung||"Privat")}</div>
+        <div><small>Kontakt</small><br>${esc(s.kontakt||"–")}</div>
+      </div>
+    </div>
+    <div class="card"><h3>Ziele</h3><div class="muted-line">${esc(s.ziele||"–")}</div>
+      <h3 style="margin-top:14px">Notizen (pädagogisch)</h3><div class="muted-line">${esc(s.notizen||"–")}</div>
+    </div>
+  </div>
+  <div class="card"><h3>Aktueller Stand</h3><div class="list">
+    <div><small>Nächster Termin</small><br>${n?`<b>${deDate(n.datum)} ${esc(n.uhrzeit||"")}</b>`:"– <button id=\"newSession\">Termin anlegen</button>"}</div>
+    <div><small>Letzte Stunde</small><br>${last?`${deDate(last.datum)}: ${esc(last.inhalt||"–")}`:"–"}</div>
+    <div><small>Noch üben</small><br>${last?esc(last.offen||"–"):"–"}</div>
+  </div></div>`;
+}
+
+function tabVorb(s){
+  const n=nextSession(s), last=sessionsSorted(s,"erledigt")[0];
+  const schwach=(s.topics||[]).filter(t=>t.status!=="sicher");
+  return `<div class="card"><h3>Automatischer Vorschlag für die nächste Stunde</h3>
+    <div class="list">
+      <div><b>1. Offene Punkte aus der letzten Stunde</b><br>${last&&last.offen?esc(last.offen):"<small>–</small>"}</div>
+      <div><b>2. Themen mit Übungsbedarf</b><br>${schwach.length?schwach.map(t=>`<span class="pill ${t.status==="offen"?"bad":"warn"}">${esc(t.name)}</span>`).join(" "):"<small>alles sicher 🎉</small>"}</div>
+      <div><b>3. Ziele</b><br>${esc(s.ziele||"–")}</div>
+      ${(()=>{const t=todos().filter(x=>!x.erledigt&&x.studentId===s.id);
+        return t.length?`<div><b>4. Eigene To-Dos</b><br>${t.map(x=>`• ${esc(x.text)}${x.faellig?` <small>(bis ${deDate(x.faellig)})</small>`:""}`).join("<br>")}</div>`:"";})()}
+    </div>
+  </div>
+  <div class="card"><h3>Mein Plan${n?` für ${deDate(n.datum)}`:""}</h3>
+    ${n?`<textarea id="planBox" placeholder="Material, Aufgaben, Reihenfolge…">${esc(n.plan||"")}</textarea>
+        <div class="row" style="margin-top:8px"><button class="primary" id="savePlan">Plan speichern</button>
+        <button id="doneSession" data-id="${n.id}">Stunde jetzt nachbereiten →</button></div>`
+      :`<div class="empty">Kein geplanter Termin.</div><button class="primary" id="newSession">+ Termin anlegen</button>`}
+  </div>`;
+}
+
+function tabSess(s){
+  const list=sessionsSorted(s);
+  return `<div class="card"><div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">Sitzungen & Termine</h3><button class="primary" id="newSession">+ Neu</button></div>
+    <div class="list" style="margin-top:10px">
+    ${list.length?list.map(x=>`<div>
+      <div class="row" style="justify-content:space-between">
+        <b>${deDate(x.datum)} ${esc(x.uhrzeit||"")}</b>
+        <span>${x.status==="geplant"?'<span class="pill acc">geplant</span>':'<span class="pill ok">erledigt</span>'}
+        ${x.status==="erledigt"?`<span class="pill ${x.bezahlt?"ok":"warn"}">${x.bezahlt?"bezahlt":"offen"}</span>`:""}
+        <button class="ghost" data-edit="${x.id}">✎</button><button class="ghost danger" data-delsess="${x.id}">✕</button></span>
+      </div>
+      ${x.inhalt?`<div><small>Behandelt:</small> ${esc(x.inhalt)}</div>`:""}
+      ${x.verstanden?`<div><small>Sitzt:</small> ${esc(x.verstanden)}</div>`:""}
+      ${x.offen?`<div><small>Üben:</small> ${esc(x.offen)}</div>`:""}
+      ${x.plan&&x.status==="geplant"?`<div><small>Plan:</small> ${esc(x.plan)}</div>`:""}
+      </div>`).join(""):`<div class="empty">Noch keine Sitzungen.</div>`}
+    </div></div>`;
+}
+
+function tabTopics(s){
+  const t=s.topics||[];
+  const grp={};t.forEach(x=>{(grp[x.fach||"Allgemein"] ||= []).push(x)});
+  return `<div class="card"><div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">Themen & Lernstand</h3><button class="primary" id="newTopic">+ Thema</button></div>
+    <p><small>Klick auf den Status wechselt: offen → wackelig → sicher</small></p>
+    ${Object.keys(grp).length?Object.entries(grp).map(([fach,items])=>`
+      <h3 style="margin-top:14px">${esc(fach)}</h3><div class="list">
+      ${items.map(x=>`<div class="row" style="justify-content:space-between">
+        <span>${esc(x.name)}${x.notiz?`<br><small>${esc(x.notiz)}</small>`:""}<br><small>zuletzt: ${deDate(x.updated)||"–"}</small></span>
+        <span><button data-cycle="${x.id}" class="pill ${x.status==="sicher"?"ok":x.status==="wackelig"?"warn":"bad"}" style="border:none">${esc(x.status)}</button>
+        <button class="ghost" data-etopic="${x.id}">✎</button><button class="ghost danger" data-dtopic="${x.id}">✕</button></span>
+      </div>`).join("")}</div>`).join(""):`<div class="empty">Noch keine Themen. Lege pro Fach die Lerninhalte an.</div>`}
+  </div>`;
+}
+
+function tabBill(s){
+  const done=sessionsSorted(s,"erledigt");
+  const monate={};done.forEach(x=>{const m=x.datum.slice(0,7);(monate[m] ||= []).push(x)});
+  const offen=done.filter(x=>!x.bezahlt);
+  const ohnePreis=(s.sessions||[]).filter(x=>!(+x.preis)&&!x.bezahlt);
+  return `<div class="card"><div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">Abrechnung</h3>
+      <button id="priceUpdate">Preis anpassen</button></div>
+    <div class="kpi" style="margin-top:10px">
+      <div><small>Stunden gesamt</small><b>${done.length}</b></div>
+      <div><small>Summe gesamt</small><b>${eur(done.reduce((a,x)=>a+(+x.preis||0),0))}</b></div>
+      <div><small>Offen</small><b style="color:${offen.length?"var(--bad)":"inherit"}">${eur(offen.reduce((a,x)=>a+(+x.preis||0),0))}</b></div>
+    </div>
+    ${ohnePreis.length?`<p style="margin-top:12px"><span class="pill bad">Achtung</span>
+      ${ohnePreis.length} offene Stunde(n) ohne Preis – zählen als 0 €. Über „Preis anpassen" nachtragen.</p>`:""}
+    </div>
+    ${Object.entries(monate).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,xs])=>`
+    <div class="card"><div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">${m.split("-").reverse().join("/")}</h3>
+      <span>${xs.length} Std · <b>${eur(xs.reduce((a,x)=>a+(+x.preis||0),0))}</b>
+      <button data-payall="${m}">alle bezahlt</button></span></div>
+      <div class="list" style="margin-top:8px">
+      ${xs.map(x=>`<div class="row" style="justify-content:space-between">
+        <span>${deDate(x.datum)} · ${x.dauer||60} min · ${eur(x.preis)}</span>
+        <button data-pay="${x.id}" class="pill ${x.bezahlt?"ok":"warn"}" style="border:none">${x.bezahlt?"bezahlt":"offen"}</button>
+      </div>`).join("")}</div></div>`).join("")||`<div class="empty">Noch keine erledigten Stunden.</div>`}`;
+}
+
+/* ========== Events ========== */
+function bind(){
+  document.querySelectorAll("[data-s]").forEach(el=>el.onclick=e=>{e.preventDefault();sel=el.dataset.s;tab="uebersicht";render()});
+  document.querySelectorAll("[data-tab]").forEach(el=>el.onclick=()=>{tab=el.dataset.tab;render()});
+  const ps=$("periodSel"); if(ps) ps.onchange=()=>{dashPeriod=ps.value;render()};
+  const ko=$("kpiOpen"); if(ko) ko.onclick=payModal;
+  const ge=$("gotoEarn"); if(ge) ge.onclick=e=>{ e.preventDefault(); sel=EARN; render(); };
+  document.querySelectorAll("[data-nachber]").forEach(b=>b.onclick=()=>{
+    const [sid,xid]=b.dataset.nachber.split("|");
+    const st=students().find(o=>o.id===sid); if(!st) return;
+    const x=(st.sessions||[]).find(o=>o.id===xid); if(!x) return;
+    sessionModal(st,x,true);   // Status im Dialog schon auf "erledigt"
+  });
+  const s=stu();
+  const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
+  const addTodo=async()=>{
+    const t=$("todoText").value.trim(); if(!t) return;
+    todos().push({id:uid(),text:t,faellig:$("todoDate").value||"",studentId:$("todoStud").value||"",erledigt:false,created:today()});
+    await save(); render();
+  };
+  on("todoAdd",addTodo);
+  if($("todoText")) $("todoText").onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();addTodo()} };
+  document.querySelectorAll("[data-tdone]").forEach(b=>b.onchange=async()=>{
+    const t=todos().find(x=>x.id===b.dataset.tdone); t.erledigt=true; t.fertigAm=today(); await save(); render()});
+  document.querySelectorAll("[data-tundo]").forEach(b=>b.onclick=async()=>{
+    const t=todos().find(x=>x.id===b.dataset.tundo); t.erledigt=false; await save(); render()});
+  document.querySelectorAll("[data-tdel]").forEach(b=>b.onclick=async()=>{
+    DB.todos=todos().filter(x=>x.id!==b.dataset.tdel); await save(); render()});
+  on("newJob",()=>jobModal(null));
+  on("jobSettings",jobSettingsModal);
+  document.querySelectorAll("[data-jedit]").forEach(b=>b.onclick=()=>jobModal(jobs().find(x=>x.id===b.dataset.jedit)));
+  document.querySelectorAll("[data-jdel]").forEach(b=>b.onclick=async()=>{
+    if(confirm("Eintrag löschen?")){DB.jobs=jobs().filter(x=>x.id!==b.dataset.jdel);await save();render()}});
+  document.querySelectorAll("[data-jpay]").forEach(b=>b.onclick=async()=>{
+    const x=jobs().find(y=>y.id===b.dataset.jpay);x.bezahlt=!x.bezahlt;await save();render()});
+  document.querySelectorAll("[data-jpayall]").forEach(b=>b.onclick=async()=>{
+    jobs().filter(x=>x.datum.startsWith(b.dataset.jpayall)).forEach(x=>x.bezahlt=true);await save();render()});
+  on("editStudent",()=>studentModal(s));
+  on("delStudent",()=>{ if(confirm(`"${s.name}" mit allen Daten unwiderruflich löschen?`)){
+      DB.students=students().filter(x=>x.id!==s.id); sel=null; save().then(render);}});
+  on("newSession",()=>sessionModal(s));
+  on("newTopic",()=>topicModal(s));
+  on("priceUpdate",()=>priceModal(s));
+  on("savePlan",async()=>{const n=nextSession(s);n.plan=$("planBox").value;await save();render()});
+  on("doneSession",()=>sessionModal(s,(s.sessions||[]).find(x=>x.id===$("doneSession").dataset.id),true));
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>sessionModal(s,s.sessions.find(x=>x.id===b.dataset.edit)));
+  document.querySelectorAll("[data-delsess]").forEach(b=>b.onclick=async()=>{
+    if(confirm("Sitzung löschen?")){s.sessions=s.sessions.filter(x=>x.id!==b.dataset.delsess);await save();render()}});
+  document.querySelectorAll("[data-cycle]").forEach(b=>b.onclick=async()=>{
+    const t=s.topics.find(x=>x.id===b.dataset.cycle);
+    t.status={offen:"wackelig",wackelig:"sicher",sicher:"offen"}[t.status];t.updated=today();await save();render()});
+  document.querySelectorAll("[data-etopic]").forEach(b=>b.onclick=()=>topicModal(s,s.topics.find(x=>x.id===b.dataset.etopic)));
+  document.querySelectorAll("[data-dtopic]").forEach(b=>b.onclick=async()=>{
+    if(confirm("Thema löschen?")){s.topics=s.topics.filter(x=>x.id!==b.dataset.dtopic);await save();render()}});
+  document.querySelectorAll("[data-pay]").forEach(b=>b.onclick=async()=>{
+    const x=s.sessions.find(y=>y.id===b.dataset.pay);x.bezahlt=!x.bezahlt;await save();render()});
+  document.querySelectorAll("[data-payall]").forEach(b=>b.onclick=async()=>{
+    s.sessions.filter(x=>x.status==="erledigt"&&x.datum.startsWith(b.dataset.payall)).forEach(x=>x.bezahlt=true);await save();render()});
+}
+
+function studentModal(s){
+  const n=!s;
+  modal(n?"Neuer Schüler":"Schüler bearbeiten",
+    `<div class="grid2"><div>${fld("Name","name",s?.name)}</div><div>${fld("Kürzel (Diskret-Modus)","kuerzel",s?.kuerzel)}</div>
+     <div>${fld("Klasse","klasse",s?.klasse)}</div><div>${fld("Schule","schule",s?.schule)}</div>
+     <div>${fld("Fächer (Komma)","faecher",s?.faecher)}</div><div>${fld("Kontakt (Eltern/Telefon)","kontakt",s?.kontakt)}</div>
+     <div>${fld("Stundensatz €","satz",s?.satz??15,"number",'step="0.5"')}</div><div>${fld("Dauer (min)","dauer",s?.dauer??60,"number")}</div>
+     <div>${sel_("Vermittlung","vermittlung",s?.vermittlung||"Privat",VERMITTLUNGEN.map(v=>[v,v]))}</div></div>
+     ${area("Ziele (z. B. Note verbessern, Klausur am …)","ziele",s?.ziele)}
+     ${area("Notizen (Lerntyp, was funktioniert, was nicht)","notizen",s?.notizen)}
+     <label class="chk"><input type="checkbox" name="aktiv" ${s?.aktiv!==false?"checked":""}> aktiv</label>`,
+    d=>{ if(!d.name.trim())return false;
+      if(n){const o={id:uid(),topics:[],sessions:[],created:today(),...d};students().push(o);sel=o.id;}
+      else Object.assign(s,d); });
+}
+
+function sessionModal(s,x,nachbereiten){
+  const n=!x;
+  const def={datum:today(),uhrzeit:"",dauer:s.dauer||60,status:"geplant",preis:s.satz||15};
+  const v={...def,...(x||{})};
+  if(nachbereiten) v.status="erledigt";
+  const topics=(s.topics||[]);
+  modal(n?"Neuer Termin":"Sitzung bearbeiten",
+    `<div class="grid2">
+      <div>${fld("Datum","datum",v.datum,"date")}</div><div>${fld("Uhrzeit","uhrzeit",v.uhrzeit,"time")}</div>
+      <div>${fld("Dauer (min)","dauer",v.dauer,"number")}</div>
+      <div>${sel_("Status","status",v.status,[["geplant","geplant"],["erledigt","erledigt"]])}</div>
+     </div>
+     <p><small><b>erledigt</b> = nachbereitet: zählt in Stunden/Umsatz und verschwindet aus „Noch nicht nachbereitet".</small></p>
+     ${area("Behandelt / gemacht","inhalt",v.inhalt)}
+     ${area("Sitzt gut","verstanden",v.verstanden)}
+     ${area("Muss noch geübt werden","offen",v.offen)}
+     ${fld("Preis €","preis",v.preis,"number",'step="0.5"')}
+     ${area("Plan für diese Stunde (Vorbereitung)","plan",v.plan)}
+     ${topics.length?`<label>Behandelte Themen</label>${topics.map(t=>
+        `<label class="chk"><input type="checkbox" name="themen" data-multi="1" value="${t.id}" ${(v.themen||[]).includes(t.id)?"checked":""}> ${esc(t.name)} <span class="pill">${t.status}</span></label>`).join("")}`:""}
+     <label class="chk"><input type="checkbox" name="bezahlt" ${v.bezahlt?"checked":""}> bezahlt</label>`,
+    d=>{ d.themen=d.themen||[];
+      (s.topics||[]).forEach(t=>{if(d.themen.includes(t.id))t.updated=d.datum});
+      if(n){(s.sessions ||= []).push({id:uid(),...d})} else Object.assign(x,d); });
+}
+
+/* Stunden, die eine Preisänderung übernehmen dürfen: nie bezahlte. */
+function preisKandidaten(s,ab,nurOhne){
+  return (s.sessions||[]).filter(x=>x.datum>=ab&&!x.bezahlt&&(!nurOhne||!(+x.preis)));
+}
+function priceModal(s){
+  modal("Preis anpassen",
+    `<p>Bereits als <b>bezahlt</b> markierte Stunden bleiben unangetastet – vergangene Abrechnungen ändern sich nicht.</p>
+     <div class="grid2"><div>${fld("Neuer Preis €","preis",s.satz??15,"number",'step="0.5"')}</div>
+     <div>${fld("Gilt ab","ab",today(),"date")}</div></div>
+     ${sel_("Umfang","umfang","offen",[["offen","alle offenen & geplanten Stunden ab dem Datum"],["ohne","nur Stunden ohne Preis"]])}
+     <label class="chk"><input type="checkbox" name="satz" checked> Stundensatz im Profil ebenfalls auf diesen Wert setzen</label>
+     <p><span class="pill acc" id="prev">–</span></p>`,
+    d=>{
+      const p=+d.preis; if(!p) return false;
+      const list=preisKandidaten(s,d.ab||"1900-01-01",d.umfang==="ohne");
+      list.forEach(x=>x.preis=p);
+      if(d.satz) s.satz=p;
+      alert(`${list.length} Stunde(n) auf ${eur(p)} gesetzt.`);
+    },"Übernehmen");
+  const f=$("dlgForm"), upd=()=>{
+    const n=preisKandidaten(s,f.querySelector("[name=ab]").value||"1900-01-01",
+      f.querySelector("[name=umfang]").value==="ohne").length;
+    $("prev").textContent=`betrifft ${n} Stunde(n)`;
+  };
+  f.addEventListener("input",upd); f.addEventListener("change",upd); upd();
+}
+
+function topicModal(s,t){
+  const n=!t;
+  modal(n?"Neues Thema":"Thema bearbeiten",
+    `<div class="grid2"><div>${fld("Fach","fach",t?.fach||(s.faecher||"").split(",")[0].trim())}</div>
+     <div>${sel_("Status","status",t?.status||"offen",[["offen","offen"],["wackelig","wackelig"],["sicher","sicher"]])}</div></div>
+     ${fld("Thema","name",t?.name)}
+     ${area("Notiz (typische Fehler, Merkhilfe)","notiz",t?.notiz)}`,
+    d=>{ if(!d.name.trim())return false; d.updated=today();
+      if(n){(s.topics ||= []).push({id:uid(),...d})} else Object.assign(t,d); });
+}
+
+/* ========== Header-Aktionen ========== */
+/* Schülerliste ein-/ausklappen (Zustand bleibt erhalten) */
+/* Auf schmalen Bildschirmen (Handy) startet die Liste eingeklappt, damit
+   nicht erst an der ganzen Schülerliste vorbeigescrollt werden muss –
+   aber nur, solange auf diesem Gerät noch keine eigene Wahl gespeichert ist. */
+let sideOpen=localStorage.getItem("np_side")!==null?localStorage.getItem("np_side")!=="0":window.innerWidth>820;
+function applySide(){
+  document.querySelector("main").classList.toggle("full",!sideOpen);
+  document.querySelector("aside").classList.toggle("hidden",!sideOpen);
+  $("sideBtn").classList.toggle("primary",!sideOpen);
+  $("sideBtn").title=sideOpen?"Schülerliste einklappen":"Schülerliste ausklappen";
+  localStorage.setItem("np_side",sideOpen?"1":"0");
+}
+const toggleSide=()=>{ sideOpen=!sideOpen; applySide(); };
+$("sideBtn").onclick=toggleSide;
+$("sideHide").onclick=toggleSide;
+applySide();
+
+$("homeBtn").onclick=()=>{sel=null;render()};
+$("search").oninput=()=>{renderSidebar();bind()};
+$("newStudent").onclick=()=>studentModal(null);
+$("lockNow").onclick=lock;
+$("discreetBtn").onclick=()=>{discreet=!discreet;$("discreetBtn").classList.toggle("primary",discreet);render()};
+$("exportBtn").onclick=()=>{
+  modal("Backup",
+    `<p>Verschlüsseltes Backup enthält alles und lässt sich nur mit deinem Master-Passwort öffnen.</p>
+     <div class="row"><button type="button" id="expEnc" class="primary">Verschlüsselt (.npv)</button>
+     <button type="button" id="expJson">Klartext-JSON (unsicher)</button></div>`,
+    ()=>true,"Schließen");
+  $("expEnc").onclick=()=>{
+    // Uhrzeit mit im Namen: sonst heissen mehrere Exporte am selben Tag
+    // identisch und man erwischt beim Einspielen leicht die falsche Datei.
+    const d=new Date(), stamp=`${today()}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+    dl(localStorage.getItem(VKEY),`nachhilfe-backup-${stamp}.npv`);
+  };
+  $("expJson").onclick=()=>{ if(confirm("Unverschlüsselte Datei mit Schülerdaten erstellen?")) dl(JSON.stringify(DB,null,2),`nachhilfe-KLARTEXT-${today()}.json`)};
+};
+/* Master-Passwort ändern: neuer Salt + neuer Key, DB wird sofort damit
+   neu verschlüsselt gespeichert. Praktisch auch als Ausweg, wenn ein
+   Passwort auf einem anderen Gerät (z.B. wegen Umlauten/Sonderzeichen
+   in unterschiedlicher Zeichenkodierung) nicht passen will: hier ein
+   einfaches, eindeutiges Passwort setzen und danach frisch exportieren. */
+$("pwChangeBtn").onclick=()=>{
+  modal("Master-Passwort ändern",
+    `<p>Gilt sofort. Danach ein frisches Backup exportieren, damit andere Geräte
+     mit dem neuen Passwort entsperren können.</p>
+     ${fld("Neues Passwort","npw1","","password",'autocapitalize="off" autocorrect="off" spellcheck="false"')}
+     ${fld("Wiederholen","npw2","","password",'autocapitalize="off" autocorrect="off" spellcheck="false"')}`,
+    async d=>{
+      if(d.npw1.length<8){ alert("Mindestens 8 Zeichen."); return false; }
+      if(d.npw1!==d.npw2){ alert("Passwörter stimmen nicht überein."); return false; }
+      SALT=crypto.getRandomValues(new Uint8Array(16));
+      KEY=await deriveKey(d.npw1,SALT);
+      await save();
+      if(savedPw()) localStorage.setItem(PWKEY,d.npw1);
+      alert("Passwort geändert. Jetzt unter „Backup“ ein frisches Backup exportieren.");
+    },"Ändern");
+};
+function dl(txt,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+/* Klartext-Backup ("KLARTEXT-*.json") von einem anderen Gerät: umgeht das
+   Problem, dass ein Passwort auf zwei Geräten gleich ankommen muss – hier
+   legt man stattdessen ein NEUES, eigenes Passwort für dieses Gerät fest
+   und übernimmt direkt dabei die mitgebrachten Daten. */
+let pendingImportDB=null;
+$("importBtn").onclick=()=>$("fileInput").click();
+$("fileInput").onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const txt=await f.text();
+  try{
+    const o=JSON.parse(txt);
+    if(o.ct&&o.salt){ localStorage.setItem(VKEY,txt); alert("Backup eingespielt. Jetzt mit dem zugehörigen Passwort entsperren."); location.reload(); }
+    else if(o.students){
+      pendingImportDB=o;
+      $("lockErr").textContent="";
+      $("lockHint").textContent=`Klartext-Backup erkannt (${o.students.length} Schüler). Jetzt hier ein NEUES Master-Passwort für dieses Gerät festlegen – deine Daten werden direkt übernommen.`;
+      $("pw1").value=""; $("pw2").value=""; $("pw1").focus();
+    }
+    else alert("Keine gültige Backup-Datei.");
+  }catch{ alert("Datei nicht lesbar."); }
+};
+
+/* ========== Kalender-Import (.ics) ========== */
+const pad=n=>String(n).padStart(2,"0");
+const isoLocal=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const unesc=v=>v.replace(/\\n/gi,"\n").replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\\\/g,"\\").trim();
+
+function icsDate(val){
+  const m=val.trim().match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/);
+  if(!m) return null;
+  const [,Y,M,D,h,mi,s,z]=m;
+  if(!h) return {datum:`${Y}-${M}-${D}`,uhrzeit:"",ts:new Date(+Y,+M-1,+D).getTime(),allday:true};
+  if(z){ const d=new Date(Date.UTC(+Y,+M-1,+D,+h,+mi,+s));
+    return {datum:isoLocal(d),uhrzeit:`${pad(d.getHours())}:${pad(d.getMinutes())}`,ts:d.getTime()}; }
+  return {datum:`${Y}-${M}-${D}`,uhrzeit:`${h}:${mi}`,ts:new Date(+Y,+M-1,+D,+h,+mi,+s).getTime()};
+}
+
+function parseICS(txt){
+  const lines=txt.replace(/\r\n/g,"\n").replace(/\n[ \t]/g,"").split("\n");
+  const out=[]; let c=null;
+  for(const l of lines){
+    if(/^BEGIN:VEVENT/i.test(l)){ c={ex:[]}; continue; }
+    if(/^END:VEVENT/i.test(l)){ if(c&&c.start) out.push(...expand(c)); c=null; continue; }
+    if(!c) continue;
+    const i=l.indexOf(":"); if(i<0) continue;
+    const key=l.slice(0,i).toUpperCase(), val=l.slice(i+1), name=key.split(";")[0];
+    if(name==="SUMMARY") c.summary=unesc(val);
+    else if(name==="UID") c.uid=val.trim();
+    else if(name==="DTSTART") c.start=icsDate(val);
+    else if(name==="DTEND") c.end=icsDate(val);
+    else if(name==="RRULE") c.rrule=val.trim();
+    else if(name==="EXDATE") val.split(",").forEach(v=>{const d=icsDate(v); if(d)c.ex.push(d.datum)});
+    else if(name==="STATUS"&&/CANCELLED/i.test(val)) c.cancel=true;
+  }
+  return out.sort((a,b)=>a.ts-b.ts);
+}
+
+/* wiederkehrende Termine (FREQ=WEEKLY/DAILY) auflösen, max. 12 Monate voraus */
+function expand(c){
+  if(c.cancel) return [];
+  const dauer=c.end&&c.end.ts>c.start.ts?Math.round((c.end.ts-c.start.ts)/60000):null;
+  const base={uid:c.uid,summary:c.summary||"(ohne Titel)",dauer,...c.start};
+  if(!c.rrule||!/FREQ=(WEEKLY|DAILY)/i.test(c.rrule)) return [base];
+  const r=Object.fromEntries(c.rrule.split(";").map(p=>p.split("=")));
+  const step=(/FREQ=DAILY/i.test(c.rrule)?1:7)*(+r.INTERVAL||1);
+  const until=r.UNTIL?icsDate(r.UNTIL).ts:null, count=+r.COUNT||0;
+  const limit=Date.now()+365*864e5, res=[];
+  let d=new Date(c.start.ts), n=0;
+  while(n<200&&d.getTime()<=limit&&(!until||d.getTime()<=until)&&(!count||n<count)){
+    const datum=isoLocal(d);
+    if(!c.ex.includes(datum)) res.push({...base,datum,ts:d.getTime(),uid:(c.uid||"")+"#"+datum});
+    d=new Date(d.getTime()); d.setDate(d.getDate()+step); n++;
+  }
+  return res;
+}
+
+function matchStudent(summary){
+  const t=(summary||"").toLowerCase();
+  const keys=jobCfg().keys.split(",").map(k=>k.trim().toLowerCase()).filter(k=>k.length>2);
+  if(keys.some(k=>t.includes(k))) return JOB;
+  let best=null,score=0;
+  students().forEach(s=>{
+    const cand=[[s.name,3],[s.kuerzel,2],...s.name.split(/\s+/).map(w=>[w,1])];
+    cand.forEach(([w,p])=>{ if(w&&w.length>2&&t.includes(w.toLowerCase())&&p>score){best=s.id;score=p} });
+  });
+  return best;
+}
+const hasSession=(s,e)=>(s.sessions||[]).some(x=>x.icsUid===e.uid||(x.datum===e.datum&&(x.uhrzeit||"")===(e.uhrzeit||"")));
+const hasJob=e=>jobs().some(x=>x.icsUid===e.uid||(x.datum===e.datum&&(x.uhrzeit||"")===(e.uhrzeit||"")));
+
+/* Monatsfilter: "2026-08" -> Zeitraum + Beschriftung; leer = alles */
+function monthRange(m){
+  if(!/^\d{4}-\d{2}$/.test(m||"")) return null;
+  const [Y,M]=m.split("-").map(Number), last=new Date(Y,M,0);
+  return {from:`${m}-01`, to:isoLocal(last),
+    von:new Date(Y,M-1,1).getTime(), bis:new Date(Y,M,0,23,59,59).getTime(),
+    label:new Date(Y,M-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"})};
+}
+let calMonth="";
+
+$("calBtn").onclick=()=>{
+  modal("Kalender",
+    `${fld("Nur einen bestimmten Monat? (optional)","monat",calMonth)}
+     <p><b>Leer lassen</b> (empfohlen): findet automatisch alle anstehenden Termine –
+     auch wenn dabei ein neuer Monat beginnt. Ein Monat hier eingetragen schränkt
+     nur diesen einen Abruf auf diesen Zeitraum ein.</p>
+     <h3 style="margin-top:18px">Direkt aus Google Kalender</h3>
+     ${gsaOn()?`
+       <p>Verbunden als <code>${esc(gsa().client_email)}</code> · ${gsaIds().length} Kalender.
+       Kein Server nötig – die App holt die Termine selbst.</p>
+       ${gsaIds().length?"":`<p class="pill bad" style="display:inline-block">Kein Kalender ausgewählt – es werden keine Termine gefunden.</p>`}
+       <div class="row" style="margin-top:8px">
+         <button type="button" class="primary" id="gSync">Termine abrufen</button>
+         <button type="button" id="gPick">Kalender wählen</button>
+         <button type="button" id="gAdd">Zugangsdatei neu wählen</button>
+         <button type="button" class="ghost danger" id="gDel">Verbindung entfernen</button>
+       </div>`:`
+       <p>Einmalig die <b>Service-Account-JSON</b> auswählen (Google Cloud Console → Service-Account → Schlüssel).
+       Danach liest die App den Kalender direkt – es muss nie wieder ein Server laufen.
+       Der Schlüssel bleibt verschlüsselt auf diesem Rechner.</p>
+       <div class="row" style="margin-top:8px"><button type="button" class="primary" id="gAdd">Google verbinden</button></div>`}
+     <details style="margin-top:18px"><summary>Alternative: lokaler Kalender-Server</summary>
+     <p>Holt die Termine aus dem Projekt <i>Nachhilfe Kalender</i> (<code>npm run dev</code>).</p>
+     ${fld("Adresse des Kalender-Servers","srv",DB.calServer||"http://localhost:3000")}
+     <div class="row" style="margin-top:8px"><button type="button" id="bridgeSync">Termine abrufen</button></div>
+     </details>
+     <h3 style="margin-top:20px">Oder: Datei-Import (.ics)</h3>
+     <p>Google Kalender → Einstellungen → <b>Importieren &amp; Exportieren</b> → Exportieren.
+     Die entpackte <code>.ics</code>-Datei wird nur im Browser gelesen, nichts wird hochgeladen.</p>
+     <div class="row"><button type="button" id="pickIcs">.ics-Datei wählen</button></div>`,
+    ()=>true,"Schließen");
+  const getM=()=>$("dlgForm").querySelector("[name=monat]").value;
+  $("pickIcs").onclick=()=>{ calMonth=getM(); $("dlg").close(); $("icsInput").click(); };
+  $("bridgeSync").onclick=()=>{ calMonth=getM();
+    bridgeSync($("dlgForm").querySelector("[name=srv]").value.trim().replace(/\/+$/,"")); };
+  if($("gAdd")) $("gAdd").onclick=()=>{ $("dlg").close(); $("gsaInput").click(); };
+  if($("gSync")) $("gSync").onclick=()=>{ calMonth=getM(); googleSync(); };
+  if($("gPick")) $("gPick").onclick=()=>{ $("dlg").close(); gsaPickCalendars(); };
+  if($("gDel")) $("gDel").onclick=async()=>{
+    if(!confirm("Google-Verbindung entfernen? Der Schlüssel wird aus dem Tresor gelöscht.")) return;
+    delete DB.gsa; gTok=null; lastBusy=[]; await save(); $("dlg").close(); render(); };
+};
+
+/* ========== Google Kalender direkt – ohne laufenden Server ==========
+   Der Service-Account-Schlüssel liegt im verschlüsselten Tresor. Die App
+   signiert damit selbst ein JWT (WebCrypto, RS256), tauscht es bei Google
+   gegen ein Access-Token und liest die Termine direkt. Es geht nichts an
+   Dritte: nur Browser -> Google. */
+const GSCOPE="https://www.googleapis.com/auth/calendar.readonly";
+const GAPI="https://www.googleapis.com/calendar/v3";
+let gTok=null;                                  // {token,exp} – nur im Speicher
+
+/* Voreinstellung fuer diesen Rechner: die eigenen Kalender-IDs. Keine
+   Zugangsdaten – die liegen verschluesselt im Tresor. Greift immer dann,
+   wenn im Tresor (noch) keine Auswahl steht. */
+const GCAL_DEF={calIds:["26e49874ed0d79538c4b8fa3864bd88464b19ca545850acc7c5975ee49196566@group.calendar.google.com", "thaoxuanha@gmail.com"],tutorCalId:"26e49874ed0d79538c4b8fa3864bd88464b19ca545850acc7c5975ee49196566@group.calendar.google.com"};
+
+const gsa=()=>DB.gsa||null;
+const gsaOn=()=>!!(gsa()&&gsa().client_email&&gsa().private_key);
+const gsaIds=()=>{ const c=gsa()||{}; const ids=(c.calIds||[]).filter(Boolean);
+  if(ids.length) return ids;
+  const t=(c.tutorCalId||"").trim();
+  return t?[t]:GCAL_DEF.calIds.slice(); };
+const tutorCal=()=>((gsa()||{}).tutorCalId||"").trim()||GCAL_DEF.tutorCalId||gsaIds()[0]||"";
+
+const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const b64uStr=t=>b64u(new TextEncoder().encode(t));
+function pemToDer(pem){
+  const b=String(pem).replace(/\\n/g,"\n").replace(/-----[^-]+-----/g,"").replace(/\s+/g,"");
+  const raw=atob(b), out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+  return out.buffer;
+}
+
+async function gToken(){
+  const c=gsa(); if(!c) throw new Error("Kein Google-Zugang hinterlegt.");
+  if(gTok&&gTok.exp>Date.now()+60000) return gTok.token;
+  const now=Math.floor(Date.now()/1000);
+  const head=b64uStr(JSON.stringify({alg:"RS256",typ:"JWT"}));
+  const claim=b64uStr(JSON.stringify({iss:c.client_email,scope:GSCOPE,
+    aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600}));
+  let key;
+  try{ key=await crypto.subtle.importKey("pkcs8",pemToDer(c.private_key),
+        {name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]); }
+  catch{ throw new Error("Der private Schlüssel ist unlesbar. Bitte die Service-Account-JSON neu auswählen."); }
+  const sig=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,new TextEncoder().encode(head+"."+claim));
+  const res=await fetch("https://oauth2.googleapis.com/token",{method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion:`${head}.${claim}.${b64u(sig)}`})});
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(j.error_description||j.error||"Token-Abruf fehlgeschlagen.");
+  gTok={token:j.access_token,exp:Date.now()+((+j.expires_in||3600)*1000)};
+  return gTok.token;
+}
+
+async function gFetch(url){
+  const res=await fetch(url,{headers:{Authorization:"Bearer "+await gToken()}});
+  if(res.status===401) gTok=null;
+  if(!res.ok){ const j=await res.json().catch(()=>({}));
+    throw new Error((j.error&&j.error.message)||("HTTP "+res.status)); }
+  return res.json();
+}
+
+async function gCalendars(){
+  const j=await gFetch(`${GAPI}/users/me/calendarList?maxResults=250&fields=items(id,summary)`);
+  return j.items||[];
+}
+
+/* Einzeltermine eines Kalenders; Serien sind bereits aufgelöst. */
+async function gcalEvents(timeMin,timeMax,calId){
+  const q=new URLSearchParams({timeMin,timeMax,singleEvents:"true",orderBy:"startTime",
+    maxResults:"2500",timeZone:TZ_,fields:"items(id,summary,start,end,status,transparency)"});
+  const j=await gFetch(`${GAPI}/calendars/${encodeURIComponent(calId)}/events?${q}`);
+  return (j.items||[]).filter(e=>e.status!=="cancelled");
+}
+
+const dayMid=k=>{ const [y,m,d]=k.split("-").map(Number); return bDate(y,m,d,0,0); };
+
+/* Belegte Zeiten aller ausgewählten Kalender.
+   "named" traegt den Titel – NUR fuer die eigene Live-Ansicht im Browser.
+   "busy" ist die anonymisierte, zusammengefuehrte Liste ohne Titel – die
+   einzige Quelle fuer freie Slots UND fuer den Bild-Export an Schüler. */
+async function gBusyDetailed(timeMin,timeMax){
+  const per=await Promise.all(gsaIds().map(id=>gcalEvents(timeMin,timeMax,id)));
+  const named=[];
+  per.flat().forEach(e=>{
+    if(e.transparency==="transparent") return;          // "Frei" blockiert nicht
+    const s=e.start.dateTime?new Date(e.start.dateTime):(e.start.date?dayMid(e.start.date):null);
+    const en=e.end&&e.end.dateTime?new Date(e.end.dateTime):(e.end&&e.end.date?dayMid(e.end.date):null);
+    if(!s||!en||isNaN(s)||isNaN(en)||en<=s) return;
+    named.push({start:s.toISOString(),end:en.toISOString(),label:e.summary||"belegt"});
+  });
+  named.sort((a,b)=>a.start.localeCompare(b.start));
+  const busy=[];
+  named.forEach(iv=>{
+    const last=busy[busy.length-1];
+    if(last&&new Date(iv.start)<=new Date(last.end)){
+      if(new Date(iv.end)>new Date(last.end)) last.end=iv.end;
+    } else busy.push({start:iv.start,end:iv.end});
+  });
+  return {named,busy};
+}
+async function gBusy(timeMin,timeMax){ return (await gBusyDetailed(timeMin,timeMax)).busy; }
+
+/* ---- Einrichtung ---- */
+$("gsaInput").onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  let j; try{ j=JSON.parse(await f.text()); }catch{ return alert("Das ist keine gültige JSON-Datei."); }
+  if(!j.client_email||!j.private_key)
+    return alert("In der Datei fehlen client_email / private_key.\nBitte die Service-Account-JSON aus der Google Cloud Console wählen.");
+  const alt=gsa()||{};
+  DB.gsa={client_email:j.client_email,private_key:j.private_key,
+    calIds:(Array.isArray(j.calIds)&&j.calIds.length)?j.calIds:(alt.calIds||[]),
+    tutorCalId:j.tutorCalId||alt.tutorCalId||""};
+  gTok=null; await save();
+  // Bringt die Datei die Kalender schon mit, ist nichts mehr auszufuellen.
+  if(gsaIds().length&&DB.gsa.tutorCalId){
+    render();
+    alert(`Google verbunden.\n${gsaIds().length} Kalender übernommen – der Kalender-Server wird nicht mehr gebraucht.\n\nDer Schlüssel liegt jetzt verschlüsselt im Tresor: die Datei nachhilfe-google.json im Ordner Downloads kann gelöscht werden.`);
+  } else gsaPickCalendars();
+};
+
+async function gsaPickCalendars(){
+  const cur=gsa()||{};
+  let list=[];
+  try{ list=await gCalendars(); }catch(err){ alert("Google-Zugriff fehlgeschlagen:\n"+err.message); }
+  const known=list.map(c=>c.id);
+  const rest=(gsaIds()||[]).filter(id=>!known.includes(id));
+  modal("Google-Kalender",
+    `<p>Verbunden als <code>${esc(cur.client_email||"")}</code></p>
+     ${list.length?`<label>Kalender des Service-Accounts</label>
+       ${list.map(c=>`<label class="chk"><input type="checkbox" name="cal" data-multi="1" value="${esc(c.id)}"
+          ${(cur.calIds||[]).includes(c.id)?"checked":""}> ${esc(c.summary||c.id)}</label>`).join("")}`
+      :`<p>Der Service-Account führt keine eigenen Kalender – trag die IDs unten ein.
+        Sie stehen im Projekt <i>Nachhilfe Kalender</i> in <code>.env.local</code>
+        (<code>GOOGLE_CALENDAR_ID</code> bzw. <code>GOOGLE_TUTORING_CALENDAR_ID</code>).</p>`}
+     ${fld("Kalender-IDs für die Verfügbarkeit (kommagetrennt)","ids",rest.join(", "))}
+     ${fld("Nachhilfe-Kalender-ID (Termine mit Titel)","tutor",tutorCal())}
+     <div class="row" style="margin-top:8px"><button type="button" id="gTest">Verbindung prüfen</button></div>
+     <div id="gTestOut" style="margin-top:8px"></div>`,
+    async d=>{
+      const ids=[...new Set([...(d.cal||[]),...String(d.ids||"").split(/[,\s]+/).filter(Boolean)])];
+      const tutor=String(d.tutor||"").trim()||ids[0]||"";
+      if(!ids.length&&!tutor){
+        alert("Bitte mindestens eine Kalender-ID angeben – sonst sähe die Woche komplett frei aus.");
+        return false;
+      }
+      DB.gsa={...gsa(),calIds:ids.length?ids:[tutor],tutorCalId:tutor};
+      lastBusy=[];
+    },"Übernehmen");
+
+  $("gTest").onclick=async()=>{
+    const f=$("dlgForm"), out=$("gTestOut");
+    const ids=[...new Set([...[...f.querySelectorAll('[name=cal]:checked')].map(c=>c.value),
+      ...f.querySelector("[name=ids]").value.split(/[,\s]+/).filter(Boolean),
+      f.querySelector("[name=tutor]").value.trim()].filter(Boolean))];
+    if(!ids.length) return out.innerHTML=`<small>Keine ID eingetragen.</small>`;
+    out.innerHTML="<small>Prüfe …</small>";
+    const von=new Date(), bis=new Date(Date.now()+30*864e5);
+    const zeilen=await Promise.all(ids.map(async id=>{
+      try{ const ev=await gcalEvents(von.toISOString(),bis.toISOString(),id);
+        return `<div><span class="pill ok">✓</span> ${esc(id)} – ${ev.length} Termine (30 Tage)</div>`; }
+      catch(err){ return `<div><span class="pill bad">✗</span> ${esc(id)} – ${esc(err.message)}</div>`; }
+    }));
+    out.innerHTML=zeilen.join("");
+  };
+}
+
+async function googleSync(){
+  const cal=tutorCal();
+  if(!cal) return alert("Es ist noch kein Nachhilfe-Kalender ausgewählt.\nBitte „Kalender wählen\" – oder die Zugangsdatei erneut auswählen.");
+  const r=monthRange(calMonth);
+  const from=r?r.from:isoLocal(new Date(Date.now()-90*864e5)),
+        to=r?r.to:isoLocal(new Date(Date.now()+365*864e5));
+  const [Yf,Mf,Df]=from.split("-").map(Number), [Yt,Mt,Dt]=to.split("-").map(Number);
+  let items;
+  try{ items=await gcalEvents(bDate(Yf,Mf,Df,0,0).toISOString(),
+                              bDate(Yt,Mt,Dt+1,0,0).toISOString(), cal); }
+  catch(err){ return alert("Google-Abruf fehlgeschlagen:\n"+err.message); }
+  const evs=items.map(e=>gEvent({id:e.id,summary:e.summary,
+      start:e.start.dateTime||e.start.date,
+      end:(e.end&&(e.end.dateTime||e.end.date))||null,
+      allDay:!e.start.dateTime})).filter(Boolean).sort((a,b)=>a.ts-b.ts);
+  $("dlg").close(); calMonth="";
+  if(!evs.length) return alert(`Keine Termine gefunden (${r?r.label:"Zeitraum"}).`);
+  importModal(evs,r&&r.label);
+}
+
+/* ---- Brücke zum lokalen Projekt "Nachhilfe Kalender" ---- */
+function gEvent(x){
+  if(!x.start) return null;
+  const d=new Date(x.allDay?x.start+"T00:00:00":x.start);
+  if(isNaN(d)) return null;
+  return {uid:x.id, summary:x.summary||"(ohne Titel)", datum:isoLocal(d),
+    uhrzeit:x.allDay?"":`${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    dauer:(x.end&&!x.allDay)?Math.round((new Date(x.end)-d)/60000):null, ts:d.getTime()};
+}
+async function bridgeSync(srv){
+  if(!srv) return alert("Bitte Adresse eintragen.");
+  DB.calServer=srv; await save();
+  const r=monthRange(calMonth);
+  const from=r?r.from:isoLocal(new Date(Date.now()-90*864e5)),
+        to=r?r.to:isoLocal(new Date(Date.now()+365*864e5));
+  let data;
+  try{
+    const res=await fetch(`${srv}/api/sessions?from=${from}&to=${to}`);
+    if(res.status===404) return alert("Route nicht erreichbar.\n\nLäuft der Kalender-Server per 'npm run dev'? (In Production ist sie absichtlich deaktiviert.)");
+    if(!res.ok) return alert("Abruf fehlgeschlagen ("+res.status+").");
+    data=await res.json();
+  }catch{ return alert("Keine Verbindung zu "+srv+".\nKalender-Server gestartet? (npm run dev)"); }
+  const evs=(data.events||[]).map(gEvent).filter(Boolean).sort((a,b)=>a.ts-b.ts);
+  $("dlg").close(); calMonth="";
+  if(!evs.length) return alert(`Keine Termine gefunden (${r?r.label:"Zeitraum"}).`);
+  importModal(evs,r&&r.label);
+}
+
+/* ---- Verfügbarkeit: Wochenraster aus /api/availability des Kalender-Servers ----
+   Europe/Berlin fest codiert (unabhaengig von der Systemzeitzone), gespiegelt
+   aus lib/time.ts / lib/layout.ts des Projekts "Nachhilfe Kalender". */
+const AVAIL="__avail__", TZ_="Europe/Berlin", HH=44;
+/* Standard-Sichtfenster im Wochenraster; das volle 24-h-Raster bleibt scrollbar. */
+const VIEW_START_HOUR=7, VIEW_END_HOUR=22;
+let availScroll=null;
+const bFmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ_,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",weekday:"short"});
+const WD_={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+function bParts(d){
+  const p={}; bFmt.formatToParts(d).forEach(x=>{if(x.type!=="literal")p[x.type]=x.value});
+  return {y:+p.year,mo:+p.month,da:+p.day,h:(+p.hour)%24,mi:+p.minute,wd:WD_[p.weekday]??0};
+}
+function bOffset(d){
+  const p=bParts(d), asUtc=Date.UTC(p.y,p.mo-1,p.da,p.h,p.mi);
+  return asUtc-Math.floor(d.getTime()/60000)*60000;
+}
+function bDate(y,mo,da,h=0,mi=0){
+  const naive=Date.UTC(y,mo-1,da,h,mi);
+  let t=naive-bOffset(new Date(naive)); t=naive-bOffset(new Date(t));
+  return new Date(t);
+}
+const dkey=(y,mo,da)=>`${y}-${String(mo).padStart(2,"0")}-${String(da).padStart(2,"0")}`;
+function wkStartKey(d){ const p=bParts(d); const mon=new Date(Date.UTC(p.y,p.mo-1,p.da-p.wd)); return dkey(mon.getUTCFullYear(),mon.getUTCMonth()+1,mon.getUTCDate()); }
+function shiftKey(k,n){ const [y,mo,da]=k.split("-").map(Number); const d=new Date(Date.UTC(y,mo-1,da+n)); return dkey(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate()); }
+function weekKeys(ws){ return Array.from({length:7},(_,i)=>shiftKey(ws,i)); }
+function minB(d){ const p=bParts(d); return p.h*60+p.mi; }
+function bClock(d){ const p=bParts(d); return `${String(p.h).padStart(2,"0")}:${String(p.mi).padStart(2,"0")}`; }
+const WD_SHORT=["Mo","Di","Mi","Do","Fr","Sa","So"];
+function dayLabel(k){ const [y,mo,da]=k.split("-").map(Number); const u=new Date(Date.UTC(y,mo-1,da)); return {wd:WD_SHORT[(u.getUTCDay()+6)%7],da}; }
+function weekRangeLabel(ws){
+  const [y1,mo1,da1]=ws.split("-").map(Number), end=shiftKey(ws,6), [y2,mo2,da2]=end.split("-").map(Number);
+  const endLbl=new Date(Date.UTC(y2,mo2-1,da2)).toLocaleDateString("de-DE",{timeZone:"UTC",day:"numeric",month:"long",year:"numeric"});
+  if(mo1===mo2&&y1===y2) return `${da1}. – ${endLbl}`;
+  const startLbl=new Date(Date.UTC(y1,mo1-1,da1)).toLocaleDateString("de-DE",{timeZone:"UTC",day:"numeric",month:"long"});
+  return `${startLbl} – ${endLbl}`;
+}
+function blocksForDay(key,busy){
+  const [y,mo,da]=key.split("-").map(Number);
+  const ds=bDate(y,mo,da,0,0), de=bDate(y,mo,da+1,0,0), dsMs=ds.getTime(), len=de.getTime()-dsMs, out=[];
+  (busy||[]).forEach(iv=>{
+    const s=new Date(iv.start).getTime(), e=new Date(iv.end).getTime();
+    if(e<=dsMs||s>=de.getTime()) return;
+    const cs=Math.max(s,dsMs), ce=Math.min(e,de.getTime()), toMin=ms=>((ms-dsMs)/len)*1440;
+    const sm=toMin(cs), em=toMin(ce);
+    if(em-sm<0.5) return;
+    out.push({sm,em,label:`${bClock(new Date(cs))} – ${bClock(new Date(ce))}`});
+  });
+  return out;
+}
+
+/* Wie blocksForDay(), aber MIT Titel – ausschliesslich fuer die eigene
+   Live-Ansicht im Browser (nie fuer den Bild-Export, nie zusammengefuehrt,
+   damit sich Termine mit unterschiedlichem Titel nicht vermischen). */
+function blocksForDayNamed(key,items){
+  const [y,mo,da]=key.split("-").map(Number);
+  const ds=bDate(y,mo,da,0,0), de=bDate(y,mo,da+1,0,0), dsMs=ds.getTime(), len=de.getTime()-dsMs, out=[];
+  (items||[]).forEach(iv=>{
+    const s=new Date(iv.start).getTime(), e=new Date(iv.end).getTime();
+    if(e<=dsMs||s>=de.getTime()) return;
+    const cs=Math.max(s,dsMs), ce=Math.min(e,de.getTime()), toMin=ms=>((ms-dsMs)/len)*1440;
+    const sm=toMin(cs), em=toMin(ce);
+    if(em-sm<0.5) return;
+    out.push({sm,em,label:iv.label||"belegt"});
+  });
+  return out;
+}
+
+/* Freie Stunden eines Tages: immer 60 min, immer zur vollen Stunde.
+   Ein Slot faellt weg, wenn er einen belegten Zeitraum ueberschneidet
+   oder bereits begonnen hat. */
+function freeSlotsForDay(key,busy){
+  const [y,mo,da]=key.split("-").map(Number);
+  const dsMs=bDate(y,mo,da,0,0).getTime(), len=bDate(y,mo,da+1,0,0).getTime()-dsMs;
+  const toMin=ms=>((ms-dsMs)/len)*1440, jetzt=Date.now(), out=[];
+  const bs=(busy||[]).map(iv=>({s:new Date(iv.start).getTime(),e:new Date(iv.end).getTime()}));
+  for(let h=VIEW_START_HOUR;h<VIEW_END_HOUR;h++){
+    const a=bDate(y,mo,da,h,0), b=bDate(y,mo,da,h+1,0), am=a.getTime(), bm=b.getTime();
+    if(am<=jetzt) continue;
+    if(bs.some(x=>x.s<bm&&x.e>am)) continue;
+    out.push({sm:toMin(am),em:toMin(bm),label:`${bClock(a)}–${bClock(b)}`});
+  }
+  return out;
+}
+
+let availWeek=null, lastBusy=[], lastBusyNamed=[];
+const calServer=()=>(DB.calServer||"http://localhost:3000").replace(/\/+$/,"");
+
+function viewAvailability(){
+  if(!availWeek) availWeek=wkStartKey(new Date());
+  return `<div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">🗓 Verfügbarkeit</h2>
+      <div class="row">
+        <button type="button" id="wkPrev">← Vorherige Woche</button>
+        <button type="button" id="wkToday">Diese Woche</button>
+        <button type="button" id="wkNext">Nächste Woche →</button>
+        <button type="button" class="primary" id="wkPng">🖼 Als Bild</button>
+      </div>
+    </div>
+    <p id="wkLabel" style="color:var(--muted);margin:4px 0 10px"></p>
+    <div id="wkBody">Lade …</div>
+  </div>`;
+}
+
+function mountAvailability(){
+  $("wkPng").onclick=()=>exportAvailPNG();
+  $("wkPrev").onclick=()=>{ availWeek=shiftKey(availWeek,-7); loadAvail(); };
+  $("wkNext").onclick=()=>{ availWeek=shiftKey(availWeek,7); loadAvail(); };
+  $("wkToday").onclick=()=>{ availWeek=wkStartKey(new Date()); loadAvail(); };
+  loadAvail();
+}
+
+async function loadAvail(){
+  $("wkLabel").textContent=weekRangeLabel(availWeek)+" · Europe/Berlin";
+  $("wkToday").disabled=availWeek===wkStartKey(new Date());
+  $("wkBody").innerHTML="Lade …";
+  let busy, named=[];
+  if(gsaOn()&&!gsaIds().length){
+    // Ohne Kalender-ID kaeme eine leere Liste zurueck – das saehe aus wie
+    // "komplett frei" und waere schlicht falsch.
+    $("wkBody").innerHTML=`<p class="empty">Es ist noch kein Kalender ausgewählt.<br>
+      📅 Kalender → <b>Kalender wählen</b> (oder die Zugangsdatei erneut auswählen).</p>`;
+    return;
+  }
+  if(gsaOn()){                                  // Direktzugriff, ohne Server
+    const [Y,M,D]=availWeek.split("-").map(Number);
+    try{ ({busy,named}=await gBusyDetailed(bDate(Y,M,D,0,0).toISOString(),bDate(Y,M,D+7,0,0).toISOString())); }
+    catch(err){
+      if(sel!==AVAIL) return;
+      $("wkBody").innerHTML=`<p class="empty">Google-Abruf fehlgeschlagen: ${esc(err.message)}<br>
+        Unter 📅 Kalender lässt sich die Verbindung prüfen.</p>`;
+      return;
+    }
+  } else {
+    const srv=calServer();
+    try{
+      const res=await fetch(`${srv}/api/availability?weekStart=${availWeek}`);
+      if(!res.ok) throw 0;
+      busy=(await res.json()).busy||[];
+    }catch{
+      if(sel!==AVAIL) return;
+      $("wkBody").innerHTML=`<p class="empty">Noch keine Kalender-Quelle.<br>
+        Unter 📅 Kalender → <b>Google verbinden</b> einmalig einrichten – dann läuft es ohne Server.</p>`;
+      return;
+    }
+  }
+  if(sel!==AVAIL) return; // Ansicht inzwischen gewechselt
+  lastBusy=busy; lastBusyNamed=named; // named bleibt leer ohne Google-Direktzugriff
+  renderGrid();
+}
+
+function renderGrid(){
+  const body=$("wkBody"); if(!body) return;
+  const keys=weekKeys(availWeek), nowP=bParts(new Date()), todayKey=dkey(nowP.y,nowP.mo,nowP.da);
+  /* Warnung: ein einzelner Kalender-Termin, der laenger als 20h dauert, blockiert
+     meist ungewollt mehrere Tage am Stueck (z.B. ein als "beschaeftigt" statt
+     "frei" eingetragener mehrtaegiger Eintrag im Hauptkalender). */
+  const langeTermine=(lastBusy||[]).filter(b=>new Date(b.end)-new Date(b.start)>20*3600e3);
+  const warnHtml=langeTermine.length?`<p class="pill bad" style="display:inline-block;margin:0 0 8px">
+      ⚠️ ${langeTermine.length===1?"Ein Termin blockiert":"Termine blockieren"} mehrere Tage am Stück
+      (${langeTermine.map(b=>`${deDate(isoLocal(new Date(b.start)))}–${deDate(isoLocal(new Date(b.end)))}`).join(", ")}).
+      Falls das nicht stimmt: im Google Kalender prüfen, ob der Termin wirklich als „beschäftigt" statt „frei" markiert ist.
+    </p>`:"";
+  const isCurWeek=availWeek===wkStartKey(new Date()), nowTop=(minB(new Date())/60)*HH;
+  const headCols=keys.map(k=>{
+    const {wd,da}=dayLabel(k), cur=k===todayKey;
+    return `<div style="flex:1;text-align:center;padding:6px 2px;${cur?"background:var(--panel2);":""}border-left:1px solid var(--line)">
+      <div style="font-size:11px;text-transform:uppercase;color:var(--muted)">${wd}</div>
+      <div style="margin:2px auto 0;width:26px;height:26px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:13px;${cur?"background:var(--accent);color:#fff;font-weight:600":""}">${da}</div>
+    </div>`;
+  }).join("");
+  const hours=Array.from({length:24},(_,h)=>h);
+  const zeigNamen=gsaOn(); // nur die eigene Live-Ansicht zeigt Namen, nie der Bild-Export
+  const dayCols=keys.map(k=>{
+    const blocks=zeigNamen?blocksForDayNamed(k,lastBusyNamed):blocksForDay(k,lastBusy), cur=k===todayKey;
+    const blockHtml=blocks.map(b=>{
+      const top=(b.sm/60)*HH, h=Math.max(((b.em-b.sm)/60)*HH,14);
+      const txt=zeigNamen?b.label:"belegt";
+      return `<div style="position:absolute;left:2px;right:2px;top:${top}px;height:${h}px;background:color-mix(in srgb,var(--bad) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--bad) 30%,var(--line));border-radius:6px;padding:2px 5px;font-size:10.5px;color:var(--bad);overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${esc(txt)}">${h>=22?`<b>${esc(txt)}</b>`:""}</div>`;
+    }).join("")
+    +freeSlotsForDay(k,lastBusy).map(b=>{
+      const top=(b.sm/60)*HH, h=Math.max(((b.em-b.sm)/60)*HH,14);
+      return `<div style="position:absolute;left:2px;right:2px;top:${top}px;height:${h}px;background:color-mix(in srgb,var(--ok) 14%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));border-radius:6px;padding:2px 5px;font-size:11px;color:var(--ok);overflow:hidden" title="Freier Termin ${esc(b.label)}"><b>Freier Termin</b>${h>=30?`<br>${esc(b.label)}`:""}</div>`;
+    }).join("");
+    const line=(isCurWeek&&cur)?`<div style="position:absolute;left:0;right:0;top:${nowTop}px;height:0;border-top:1px solid var(--bad);z-index:2"></div>`:"";
+    return `<div style="position:relative;flex:1;border-left:1px solid var(--line);${cur?"background:color-mix(in srgb,var(--panel2) 60%,transparent);":""}">
+      ${hours.map(()=>`<div style="height:${HH}px;border-top:1px solid var(--line)"></div>`).join("")}
+      ${blockHtml}${line}
+    </div>`;
+  }).join("");
+  const hourLabels=hours.map(h=>`<div style="height:${HH}px;position:relative"><span style="position:absolute;top:-7px;right:6px;font-size:11px;color:var(--muted)">${h===0?"":String(h).padStart(2,"0")+":00"}</span></div>`).join("");
+  const prev=$("wkScroll")?$("wkScroll").scrollTop:null;
+  const nameHint=zeigNamen?`<p style="color:var(--muted);margin:0 0 8px"><small>🔒 Namen siehst nur du hier im Browser – der Bild-Export bleibt anonym ("belegt").</small></p>`:"";
+  body.innerHTML=`
+    ${nameHint}${warnHtml}
+    <div id="wkHScroll" style="overflow-x:auto">
+      <div style="min-width:700px">
+        <div style="display:flex;border-bottom:1px solid var(--line)"><div style="width:44px;flex-shrink:0"></div>${headCols}</div>
+        <div id="wkScroll" style="max-height:${HH*(VIEW_END_HOUR-VIEW_START_HOUR)}px;overflow-y:auto;border:1px solid var(--line);border-top:none;border-radius:0 0 8px 8px">
+          <div style="display:flex">
+            <div style="width:44px;flex-shrink:0">${hourLabels}</div>
+            ${dayCols}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  const sc=$("wkScroll");
+  if(sc){ sc.scrollTop=(prev!==null?prev:(availScroll!==null?availScroll:VIEW_START_HOUR*HH));
+    sc.onscroll=()=>availScroll=sc.scrollTop; }
+}
+
+/* ---- Wochenraster als Bild exportieren (zum Weiterschicken an Schüler) ----
+   Gezeigt werden nur die freien Stunden ("Freier Termin", 60 min zur vollen
+   Stunde) – keine Titel, keine Namen, belegte Zeiten bleiben unbeschriftet.
+   Feste helle Farben, damit das Bild in jedem Messenger gleich aussieht. */
+const PNG_W=980, PNG_PAD=16, PNG_GUT=54, PNG_HEAD=104, PNG_DAYH=46, PNG_ROW=36, PNG_FOOT=34;
+const xmlEsc=t=>String(t??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function availSVG(){
+  const keys=weekKeys(availWeek);
+  /* Sichtfenster 7–22 Uhr, bei Bedarf auf tatsaechliche Belegung erweitert */
+  let h0=VIEW_START_HOUR, h1=VIEW_END_HOUR;
+  keys.forEach(k=>blocksForDay(k,lastBusy).forEach(b=>{
+    h0=Math.min(h0,Math.floor(b.sm/60)); h1=Math.max(h1,Math.ceil(b.em/60)); }));
+  const rows=h1-h0, colW=(PNG_W-2*PNG_PAD-PNG_GUT)/7;
+  const gridTop=PNG_HEAD+PNG_DAYH, H=gridTop+rows*PNG_ROW+PNG_FOOT;
+  const x0=PNG_PAD+PNG_GUT, yOf=min=>gridTop+((min-h0*60)/60)*PNG_ROW;
+  const nowP=bParts(new Date()), todayKey=dkey(nowP.y,nowP.mo,nowP.da);
+  const C={bg:"#ffffff",text:"#14181f",muted:"#6b7480",line:"#dfe3e8",weekend:"#f6f7f9",
+           busy:"#eceef1",free:"#e3f7ec",freeLine:"#1f9d55",today:"#eef3ff"};
+  let g="";
+
+  /* Titel */
+  g+=`<text x="${PNG_PAD}" y="34" font-size="21" font-weight="700" fill="${C.text}">Meine Verfügbarkeit</text>`
+   +`<text x="${PNG_PAD}" y="58" font-size="14" fill="${C.muted}">${xmlEsc(weekRangeLabel(availWeek))} · Europe/Berlin</text>`
+   +`<rect x="${PNG_PAD}" y="72" width="16" height="12" rx="3" fill="${C.free}" stroke="${C.freeLine}"/>`
+   +`<text x="${PNG_PAD+24}" y="82" font-size="12.5" fill="${C.muted}">Freier Termin (60 min) – graue Zeiten sind schon vergeben</text>`;
+
+  /* Tagesspalten + Kopf */
+  keys.forEach((k,i)=>{
+    const x=x0+i*colW, we=i>=5, heute=k===todayKey, {wd,da}=dayLabel(k);
+    if(we||heute) g+=`<rect x="${x}" y="${gridTop}" width="${colW}" height="${rows*PNG_ROW}" fill="${heute?C.today:C.weekend}"/>`;
+    g+=`<text x="${x+colW/2}" y="${PNG_HEAD+18}" text-anchor="middle" font-size="12" fill="${C.muted}">${wd}</text>`
+     +`<text x="${x+colW/2}" y="${PNG_HEAD+38}" text-anchor="middle" font-size="15" font-weight="${heute?"700":"500"}" fill="${C.text}">${da}</text>`;
+  });
+
+  /* Stundenlinien + Beschriftung */
+  for(let h=h0;h<=h1;h++){
+    const y=yOf(h*60);
+    g+=`<line x1="${PNG_PAD}" y1="${y}" x2="${PNG_W-PNG_PAD}" y2="${y}" stroke="${C.line}"/>`;
+    if(h<h1) g+=`<text x="${x0-8}" y="${y+15}" text-anchor="end" font-size="12" fill="${C.muted}">${String(h).padStart(2,"0")}:00</text>`;
+  }
+  for(let i=0;i<=7;i++) g+=`<line x1="${x0+i*colW}" y1="${gridTop}" x2="${x0+i*colW}" y2="${gridTop+rows*PNG_ROW}" stroke="${C.line}"/>`;
+
+  /* Belegte Zeiten: nur grau, ohne Text */
+  keys.forEach((k,i)=>{
+    blocksForDay(k,lastBusy).forEach(b=>{
+      const y=yOf(b.sm), hgt=Math.max(yOf(b.em)-y,13), x=x0+i*colW+2;
+      g+=`<rect x="${x}" y="${y}" width="${colW-4}" height="${hgt}" rx="5" fill="${C.busy}"/>`;
+    });
+  });
+
+  /* Freie Termine */
+  keys.forEach((k,i)=>{
+    freeSlotsForDay(k,lastBusy).forEach(b=>{
+      const y=yOf(b.sm), hgt=Math.max(yOf(b.em)-y,13), x=x0+i*colW+2;
+      g+=`<rect x="${x}" y="${y}" width="${colW-4}" height="${hgt}" rx="5" fill="${C.free}" stroke="${C.freeLine}" stroke-width="0.8"/>`;
+      if(hgt>=17) g+=`<text x="${x+6}" y="${y+13}" font-size="10.5" font-weight="600" fill="${C.freeLine}">Freier Termin</text>`;
+      if(hgt>=30) g+=`<text x="${x+6}" y="${y+25}" font-size="10" fill="${C.freeLine}">${xmlEsc(b.label)}</text>`;
+    });
+  });
+
+  const stand=new Date();
+  g+=`<text x="${PNG_PAD}" y="${H-12}" font-size="11" fill="${C.muted}">Stand: ${deDate(isoLocal(stand))}, ${pad(stand.getHours())}:${pad(stand.getMinutes())} Uhr</text>`;
+
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PNG_W}" height="${H}" viewBox="0 0 ${PNG_W} ${H}" font-family="-apple-system, Helvetica, Arial, sans-serif">`
+    +`<rect width="${PNG_W}" height="${H}" fill="${C.bg}"/>${g}</svg>`, w:PNG_W, h:H};
+}
+
+function svgToPNG(svg,w,h,scale=2){
+  return new Promise((ok,bad)=>{
+    const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml;charset=utf-8"})), img=new Image();
+    img.onload=()=>{
+      const c=document.createElement("canvas"); c.width=w*scale; c.height=h*scale;
+      const ctx=c.getContext("2d"); ctx.scale(scale,scale); ctx.drawImage(img,0,0);
+      URL.revokeObjectURL(url);
+      c.toBlob(b=>b?ok(b):bad(new Error("leer")),"image/png");
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); bad(new Error("SVG")); };
+    img.src=url;
+  });
+}
+
+async function exportAvailPNG(){
+  const btn=$("wkPng"); if(btn){btn.disabled=true;btn.textContent="…";}
+  try{
+    const {svg,w,h}=availSVG();
+    const blob=await svgToPNG(svg,w,h);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`verfuegbarkeit-${availWeek}.png`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    try{ if(navigator.clipboard&&window.ClipboardItem)
+      await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]); }catch{}
+  }catch{ alert("Bild konnte nicht erzeugt werden."); }
+  if(btn){btn.disabled=false;btn.textContent="🖼 Als Bild";}
+}
+
+/* Dashboard minuetlich auffrischen, damit abgelaufene Termine von selbst
+   in "Noch nicht nachbereitet" wandern. Pausiert bei offenem Dialog oder
+   waehrend einer Eingabe, damit nichts unter den Fingern weggerendert wird. */
+setInterval(()=>{
+  if(!KEY||sel!==null||$("dlg").open) return;
+  const a=document.activeElement;
+  if(a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName)) return;
+  render();
+},60000);
+
+/* Rote Jetzt-Linie minuetlich nachziehen, ohne neu zu laden. */
+setInterval(()=>{ if(sel===AVAIL&&$("wkBody")&&!$("wkBody").textContent.startsWith("Lade")) renderGrid(); },60000);
+$("availBtn").onclick=()=>{ sel=AVAIL; render(); };
+$("earnBtn").onclick=()=>{ sel=EARN; render(); };
+$("icsInput").onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  let evs;
+  try{ evs=parseICS(await f.text()); }catch{ return alert("Datei konnte nicht gelesen werden."); }
+  const r=monthRange(calMonth);
+  evs=(r?evs.filter(x=>x.ts>=r.von&&x.ts<=r.bis)
+        :evs.filter(x=>x.ts>=Date.now()-90*864e5)).slice(0,300);
+  $("dlg").close(); calMonth="";
+  if(!evs.length) return alert(`Keine Termine gefunden (${r?r.label:"letzte 90 Tage + Zukunft"}).`);
+  importModal(evs,r&&r.label);
+};
+
+function importModal(evs,label){
+  const j=jobCfg();
+  const opts=students().map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")
+    +`<option value="${JOB}">🌸 ${esc(j.name)}</option>`;
+  const rows=evs.map((e,i)=>{
+    const dup=students().some(s=>hasSession(s,e))||hasJob(e), m=matchStudent(e.summary);
+    return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding:8px 0">
+      <label class="chk" style="flex:1;min-width:220px">
+        <input type="checkbox" name="t${i}" ${m&&!dup?"checked":""} ${dup?"disabled":""}>
+        <span><b>${deDate(e.datum)}</b> ${esc(e.uhrzeit||"ganztägig")} · ${esc(e.summary)}
+        <br><small>${e.dauer?e.dauer+" min":"Dauer unbekannt"}${dup?" · <b>schon vorhanden</b>":""}</small></span>
+      </label>
+      <select name="s${i}" style="width:190px"><option value="">– nicht übernehmen –</option>${opts}</select>
+    </div>`;
+  }).join("");
+  modal(`${evs.length} Termine${label?" – "+label:""}`,
+    `<p>Vergangene Termine werden als <b>erledigt</b> angelegt, künftige als <b>geplant</b>.
+     Zuordnung per Name im Titel – bitte prüfen.</p>
+     <div style="max-height:46vh;overflow:auto">${rows}</div>`,
+    d=>{
+      let n=0,nj=0;
+      evs.forEach((e,i)=>{
+        if(!d["t"+i]) return;
+        const ziel=d["s"+i];
+        if(ziel===JOB){
+          if(hasJob(e)) return;
+          const dm=e.dauer||60;
+          jobs().push({id:uid(),icsUid:e.uid,datum:e.datum,uhrzeit:e.uhrzeit,dauer:dm,
+            preis:Math.round(dm/60*j.satz*100)/100,notiz:e.summary,bezahlt:false});
+          nj++; return;
+        }
+        const s=students().find(x=>x.id===ziel);
+        if(!s||hasSession(s,e)) return;
+        (s.sessions ||= []).push({id:uid(),icsUid:e.uid,datum:e.datum,uhrzeit:e.uhrzeit,
+          dauer:e.dauer||s.dauer||60,status:e.ts<Date.now()?"erledigt":"geplant",
+          preis:s.satz||15,bezahlt:false});
+        n++;
+      });
+      alert(`${n} Nachhilfe-Termin(e)${nj?` und ${nj} Eintrag/Einträge für ${j.name}`:""} übernommen.`);
+    },"Importieren");
+  // Vorauswahl der Schüler-Dropdowns
+  evs.forEach((e,i)=>{ const m=matchStudent(e.summary), el=$("dlgForm").querySelector(`[name="s${i}"]`); if(m&&el) el.value=m; });
+}
+
+/* Start: mit gemerktem Passwort direkt in die App, sonst Sperrbildschirm. */
+async function boot(){
+  initLockUI();
+  const pw=savedPw();
+  if(!pw||!hasVault()) return;
+  $("lockHint").textContent="Wird entsperrt …";
+  try{
+    const vault=JSON.parse(localStorage.getItem(VKEY));
+    SALT=ub64(vault.salt);
+    KEY=await deriveKey(pw,SALT);
+    DB=await decryptVault(KEY,vault);
+    openApp();
+  }catch{
+    localStorage.removeItem(PWKEY); KEY=null;
+    initLockUI();
+    $("lockErr").textContent="Gespeichertes Passwort passt nicht mehr – bitte eingeben.";
+  }
+}
+boot();
+</script>
+</body>
+</html>
