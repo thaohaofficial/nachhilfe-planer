@@ -994,11 +994,25 @@ $("pwChangeBtn").onclick=()=>{
       alert("Passwort geändert. Jetzt unter „Backup“ ein frisches Backup exportieren.");
     },"Ändern");
 };
-function dl(txt,name){
+/* Datei anbieten: in der Claude-Artifact-Ansicht über die downloads-Capability
+   (dort blockiert die Sandbox normale <a download>-Links), sonst klassisch. */
+async function saveFile(data,name){
+  if(window.claude&&typeof window.claude.use==="function"){
+    try{
+      const downloads=await window.claude.use("downloads");
+      if(downloads){ await downloads.save({filename:name,data}); return; }
+    }catch(err){
+      if(err&&err.code==="declined") return;
+      alert("Speichern fehlgeschlagen: "+(err&&err.message?err.message:err));
+      return;
+    }
+  }
   const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  a.href=URL.createObjectURL(data instanceof Blob?data:new Blob([data],{type:"application/json"}));
+  a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
+async function dl(txt,name){ await saveFile(txt,name); }
 /* Klartext-Backup ("KLARTEXT-*.json") von einem anderen Gerät: umgeht das
    Problem, dass ein Passwort auf zwei Geräten gleich ankommen muss – hier
    legt man stattdessen ein NEUES, eigenes Passwort für dieses Gerät fest
@@ -1655,11 +1669,7 @@ async function exportAvailPNG(){
   try{
     const {svg,w,h}=availSVG();
     const blob=await svgToPNG(svg,w,h);
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=`verfuegbarkeit-${availWeek}.png`;
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    await saveFile(blob,`verfuegbarkeit-${availWeek}.png`);
     try{ if(navigator.clipboard&&window.ClipboardItem)
       await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]); }catch{}
   }catch{ alert("Bild konnte nicht erzeugt werden."); }
