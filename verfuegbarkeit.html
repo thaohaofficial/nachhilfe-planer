@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meine Verfügbarkeit</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{--bg:#f5f6f8;--panel:#fff;--text:#14181f;--muted:#6b7480;--line:#dfe3e8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1020px;margin:0 auto;padding:20px 16px 40px}
+  .nav{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:14px}
+  .nav button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+  .nav button:disabled{opacity:.45;cursor:default}
+  #card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:auto}
+  #status{text-align:center;color:var(--muted);padding:40px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <button id="prev" type="button">‹ Vorherige Woche</button>
+    <button id="today" type="button">Diese Woche</button>
+    <button id="next" type="button">Nächste Woche ›</button>
+  </div>
+  <div id="card"><p id="status">Lade …</p></div>
+</div>
+<script>
+/* ---- Öffentliche, anonyme Verfügbarkeits-Ansicht für Schüler ----------
+   Zeigt NUR freie/belegte Zeiträume (keine Titel, keine Namen), per
+   Google-Calendar-API-Key mit Read-only-Zugriff auf einen einzelnen,
+   öffentlich freigegebenen Kalender ("Nur Frei/Beschäftigt sichtbar").
+   Kein Login, keine Schülerdaten – identisch zum "Als Bild"-Export. */
+const API_KEY = "AIzaSyC708jJafc7yR99Wh0OWlrxpsHUd5f5AsU";
+const CAL_ID  = "26e49874ed0d79538c4b8fa3864bd88464b19ca545850acc7c5975ee49196566@group.calendar.google.com";
+
+const TZ_="Europe/Berlin", VIEW_START_HOUR=7, VIEW_END_HOUR=22;
+const pad=n=>String(n).padStart(2,"0");
+const deDate=d=>d?d.split("-").reverse().join("."):"";
+const isoLocal=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const xmlEsc=t=>String(t??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const dkey=(y,mo,da)=>`${y}-${String(mo).padStart(2,"0")}-${String(da).padStart(2,"0")}`;
+
+const bFmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ_,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",weekday:"short"});
+const WD_={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+function bParts(d){ const p={}; bFmt.formatToParts(d).forEach(x=>{if(x.type!=="literal")p[x.type]=x.value}); return {y:+p.year,mo:+p.month,da:+p.day,h:(+p.hour)%24,mi:+p.minute,wd:WD_[p.weekday]??0}; }
+function bOffset(d){ const p=bParts(d), asUtc=Date.UTC(p.y,p.mo-1,p.da,p.h,p.mi); return asUtc-Math.floor(d.getTime()/60000)*60000; }
+function bDate(y,mo,da,h=0,mi=0){ const naive=Date.UTC(y,mo-1,da,h,mi); let t=naive-bOffset(new Date(naive)); t=naive-bOffset(new Date(t)); return new Date(t); }
+function bClock(d){ const p=bParts(d); return `${pad(p.h)}:${pad(p.mi)}`; }
+function wkStartKey(d){ const p=bParts(d); const mon=new Date(Date.UTC(p.y,p.mo-1,p.da-p.wd)); return dkey(mon.getUTCFullYear(),mon.getUTCMonth()+1,mon.getUTCDate()); }
+function shiftKey(k,n){ const [y,mo,da]=k.split("-").map(Number); const d=new Date(Date.UTC(y,mo-1,da+n)); return dkey(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate()); }
+function weekKeys(ws){ return Array.from({length:7},(_,i)=>shiftKey(ws,i)); }
+const WD_SHORT=["Mo","Di","Mi","Do","Fr","Sa","So"];
+function dayLabel(k){ const [y,mo,da]=k.split("-").map(Number); const u=new Date(Date.UTC(y,mo-1,da)); return {wd:WD_SHORT[(u.getUTCDay()+6)%7],da}; }
+function weekRangeLabel(ws){
+  const [y1,mo1,da1]=ws.split("-").map(Number), end=shiftKey(ws,6), [y2,mo2,da2]=end.split("-").map(Number);
+  const endLbl=new Date(Date.UTC(y2,mo2-1,da2)).toLocaleDateString("de-DE",{timeZone:"UTC",day:"numeric",month:"long",year:"numeric"});
+  if(mo1===mo2&&y1===y2) return `${da1}. – ${endLbl}`;
+  const startLbl=new Date(Date.UTC(y1,mo1-1,da1)).toLocaleDateString("de-DE",{timeZone:"UTC",day:"numeric",month:"long"});
+  return `${startLbl} – ${endLbl}`;
+}
+function blocksForDay(key,busy){
+  const [y,mo,da]=key.split("-").map(Number);
+  const ds=bDate(y,mo,da,0,0), de=bDate(y,mo,da+1,0,0), dsMs=ds.getTime(), len=de.getTime()-dsMs, out=[];
+  (busy||[]).forEach(iv=>{
+    const s=new Date(iv.start).getTime(), e=new Date(iv.end).getTime();
+    if(e<=dsMs||s>=de.getTime()) return;
+    const cs=Math.max(s,dsMs), ce=Math.min(e,de.getTime()), toMin=ms=>((ms-dsMs)/len)*1440;
+    const sm=toMin(cs), em=toMin(ce);
+    if(em-sm<0.5) return;
+    out.push({sm,em});
+  });
+  return out;
+}
+function freeSlotsForDay(key,busy){
+  const [y,mo,da]=key.split("-").map(Number);
+  const dsMs=bDate(y,mo,da,0,0).getTime(), len=bDate(y,mo,da+1,0,0).getTime()-dsMs;
+  const toMin=ms=>((ms-dsMs)/len)*1440, jetzt=Date.now(), out=[];
+  const bs=(busy||[]).map(iv=>({s:new Date(iv.start).getTime(),e:new Date(iv.end).getTime()}));
+  for(let h=VIEW_START_HOUR;h<VIEW_END_HOUR;h++){
+    const a=bDate(y,mo,da,h,0), b=bDate(y,mo,da,h+1,0), am=a.getTime(), bm=b.getTime();
+    if(am<=jetzt) continue;
+    if(bs.some(x=>x.s<bm&&x.e>am)) continue;
+    out.push({sm:toMin(am),em:toMin(bm),label:`${bClock(a)}–${bClock(b)}`});
+  }
+  return out;
+}
+
+const PNG_W=980, PNG_PAD=16, PNG_GUT=54, PNG_HEAD=104, PNG_DAYH=46, PNG_ROW=36, PNG_FOOT=34;
+function availSVG(week,busy){
+  const keys=weekKeys(week);
+  let h0=VIEW_START_HOUR, h1=VIEW_END_HOUR;
+  keys.forEach(k=>blocksForDay(k,busy).forEach(b=>{ h0=Math.min(h0,Math.floor(b.sm/60)); h1=Math.max(h1,Math.ceil(b.em/60)); }));
+  const rows=h1-h0, colW=(PNG_W-2*PNG_PAD-PNG_GUT)/7;
+  const gridTop=PNG_HEAD+PNG_DAYH, H=gridTop+rows*PNG_ROW+PNG_FOOT;
+  const x0=PNG_PAD+PNG_GUT, yOf=min=>gridTop+((min-h0*60)/60)*PNG_ROW;
+  const nowP=bParts(new Date()), todayKey=dkey(nowP.y,nowP.mo,nowP.da);
+  const C={bg:"#ffffff",text:"#14181f",muted:"#6b7480",line:"#dfe3e8",weekend:"#f6f7f9",
+           busy:"#eceef1",free:"#e3f7ec",freeLine:"#1f9d55",today:"#eef3ff"};
+  let g="";
+  g+=`<text x="${PNG_PAD}" y="34" font-size="21" font-weight="700" fill="${C.text}">Meine Verfügbarkeit</text>`
+   +`<text x="${PNG_PAD}" y="58" font-size="14" fill="${C.muted}">${xmlEsc(weekRangeLabel(week))} · Europe/Berlin</text>`
+   +`<rect x="${PNG_PAD}" y="72" width="16" height="12" rx="3" fill="${C.free}" stroke="${C.freeLine}"/>`
+   +`<text x="${PNG_PAD+24}" y="82" font-size="12.5" fill="${C.muted}">Freier Termin (60 min) – graue Zeiten sind schon vergeben</text>`;
+  keys.forEach((k,i)=>{
+    const x=x0+i*colW, we=i>=5, heute=k===todayKey, {wd,da}=dayLabel(k);
+    if(we||heute) g+=`<rect x="${x}" y="${gridTop}" width="${colW}" height="${rows*PNG_ROW}" fill="${heute?C.today:C.weekend}"/>`;
+    g+=`<text x="${x+colW/2}" y="${PNG_HEAD+18}" text-anchor="middle" font-size="12" fill="${C.muted}">${wd}</text>`
+     +`<text x="${x+colW/2}" y="${PNG_HEAD+38}" text-anchor="middle" font-size="15" font-weight="${heute?"700":"500"}" fill="${C.text}">${da}</text>`;
+  });
+  for(let h=h0;h<=h1;h++){
+    const y=yOf(h*60);
+    g+=`<line x1="${PNG_PAD}" y1="${y}" x2="${PNG_W-PNG_PAD}" y2="${y}" stroke="${C.line}"/>`;
+    if(h<h1) g+=`<text x="${x0-8}" y="${y+15}" text-anchor="end" font-size="12" fill="${C.muted}">${String(h).padStart(2,"0")}:00</text>`;
+  }
+  for(let i=0;i<=7;i++) g+=`<line x1="${x0+i*colW}" y1="${gridTop}" x2="${x0+i*colW}" y2="${gridTop+rows*PNG_ROW}" stroke="${C.line}"/>`;
+  keys.forEach((k,i)=>{
+    blocksForDay(k,busy).forEach(b=>{
+      const y=yOf(b.sm), hgt=Math.max(yOf(b.em)-y,13), x=x0+i*colW+2;
+      g+=`<rect x="${x}" y="${y}" width="${colW-4}" height="${hgt}" rx="5" fill="${C.busy}"/>`;
+    });
+  });
+  keys.forEach((k,i)=>{
+    freeSlotsForDay(k,busy).forEach(b=>{
+      const y=yOf(b.sm), hgt=Math.max(yOf(b.em)-y,13), x=x0+i*colW+2;
+      g+=`<rect x="${x}" y="${y}" width="${colW-4}" height="${hgt}" rx="5" fill="${C.free}" stroke="${C.freeLine}" stroke-width="0.8"/>`;
+      if(hgt>=17) g+=`<text x="${x+6}" y="${y+13}" font-size="10.5" font-weight="600" fill="${C.freeLine}">Freier Termin</text>`;
+      if(hgt>=30) g+=`<text x="${x+6}" y="${y+25}" font-size="10" fill="${C.freeLine}">${xmlEsc(b.label)}</text>`;
+    });
+  });
+  const stand=new Date();
+  g+=`<text x="${PNG_PAD}" y="${H-12}" font-size="11" fill="${C.muted}">Stand: ${deDate(isoLocal(stand))}, ${pad(stand.getHours())}:${pad(stand.getMinutes())} Uhr</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${PNG_W}" height="${H}" viewBox="0 0 ${PNG_W} ${H}" style="width:100%;height:auto;display:block" font-family="-apple-system, Helvetica, Arial, sans-serif"><rect width="${PNG_W}" height="${H}" fill="${C.bg}"/>${g}</svg>`;
+}
+
+async function fetchBusy(week){
+  const [y,mo,da]=week.split("-").map(Number);
+  const timeMin=bDate(y,mo,da,0,0).toISOString(), timeMax=bDate(y,mo,da+7,0,0).toISOString();
+  const q=new URLSearchParams({key:API_KEY,timeMin,timeMax,singleEvents:"true",orderBy:"startTime",
+    maxResults:"2500",timeZone:TZ_,fields:"items(start,end,status,transparency)"});
+  const res=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events?${q}`);
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const j=await res.json();
+  const busy=[];
+  (j.items||[]).forEach(e=>{
+    if(e.status==="cancelled"||e.transparency==="transparent") return;
+    if(!e.start||!e.end) return;
+    const s=e.start.dateTime||e.start.date, en=e.end.dateTime||e.end.date;
+    if(!s||!en) return;
+    busy.push({start:new Date(s).toISOString(),end:new Date(en).toISOString()});
+  });
+  return busy;
+}
+
+function weekFromUrl(){
+  const p=new URLSearchParams(location.search).get("week");
+  return p&&/^\d{4}-\d{2}-\d{2}$/.test(p) ? wkStartKey(bDate(...p.split("-").map(Number))) : wkStartKey(new Date());
+}
+let week=weekFromUrl();
+
+async function render(){
+  const card=$("card"); card.innerHTML=`<p id="status">Lade …</p>`;
+  $("today").disabled=week===wkStartKey(new Date());
+  const u=new URL(location.href);
+  if(week===wkStartKey(new Date())) u.searchParams.delete("week"); else u.searchParams.set("week",week);
+  history.replaceState(null,"",u);
+  try{
+    const busy=await fetchBusy(week);
+    card.innerHTML=availSVG(week,busy);
+  }catch(err){
+    card.innerHTML=`<p id="status">Verfügbarkeit konnte nicht geladen werden.<br>${xmlEsc(err.message)}</p>`;
+  }
+}
+function $(id){ return document.getElementById(id); }
+$("prev").onclick=()=>{ week=shiftKey(week,-7); render(); };
+$("next").onclick=()=>{ week=shiftKey(week,7); render(); };
+$("today").onclick=()=>{ week=wkStartKey(new Date()); render(); };
+render();
+</script>
+</body>
+</html>
