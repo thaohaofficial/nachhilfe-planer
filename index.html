@@ -433,7 +433,11 @@ function viewDashboard(){
     <div class="list" style="margin-top:8px">
     ${ueberfaellig.slice(0,5).map(x=>`<div class="row" style="justify-content:space-between">
       <span><b>${deDate(x.datum)}</b> ${esc(x.uhrzeit||"")} · <a href="#" data-s="${x.s.id}">${esc(dispName(x.s))}</a></span>
-      <button class="primary" data-nachber="${x.s.id}|${x.id}">Nachbereiten</button></div>`).join("")}
+      <span style="display:flex;align-items:center;gap:8px">
+        <label class="chk" style="margin:0"><input type="checkbox" data-quickpay="${x.s.id}|${x.id}" ${x.bezahlt?"checked":""}> bezahlt</label>
+        <input type="date" data-quickpaydate="${x.s.id}|${x.id}" value="${x.bezahltAm||today()}" style="width:140px" ${x.bezahlt?"":"disabled"}>
+        <button class="primary" data-nachber="${x.s.id}|${x.id}">Nachbereiten</button>
+      </span></div>`).join("")}
     ${ueberfaellig.length>5?`<div><small>… und ${ueberfaellig.length-5} weitere</small></div>`:""}
   </div></div>`:""}
   <div class="grid2">
@@ -611,7 +615,7 @@ function payModal(){
 
   f.querySelectorAll("[data-paychk]").forEach(c=>c.onchange=async()=>{
     const e=eintraege.find(o=>o.id===c.dataset.paychk);
-    e.bezahlt=c.checked; e.ref.bezahlt=c.checked;
+    e.bezahlt=c.checked; e.ref.bezahlt=c.checked; e.ref.bezahltAm=c.checked?today():"";
     const r=f.querySelector(`[data-row="${e.id}"]`);
     r.classList.toggle("isPaid",c.checked); r.style.opacity=c.checked?.5:1;
     sumUp(); await save();
@@ -647,7 +651,7 @@ function viewJobs(){
         ${xs.map(x=>`<div class="row" style="justify-content:space-between">
           <span><b>${deDate(x.datum)}</b> ${esc(x.uhrzeit||"")} · ${x.dauer||60} min${x.notiz?`<br><small>${esc(x.notiz)}</small>`:""}</span>
           <span>${eur(x.preis)}
-          <button data-jpay="${x.id}" class="pill ${x.bezahlt?"ok":"warn"}" style="border:none">${x.bezahlt?"bezahlt":"offen"}</button>
+          <button data-jpay="${x.id}" class="pill ${x.bezahlt?"ok":"warn"}" style="border:none" title="${x.bezahlt&&x.bezahltAm?"bezahlt am "+deDate(x.bezahltAm):""}">${x.bezahlt?"bezahlt":"offen"}</button>
           <button class="ghost" data-jedit="${x.id}">✎</button><button class="ghost danger" data-jdel="${x.id}">✕</button></span>
         </div>`).join("")}</div></div>`).join("")||`<div class="empty">Noch keine Einträge.</div>`}`;
 }
@@ -793,7 +797,7 @@ function tabBill(s){
       <div class="list" style="margin-top:8px">
       ${xs.map(x=>`<div class="row" style="justify-content:space-between">
         <span>${deDate(x.datum)} · ${x.dauer||60} min · ${eur(x.preis)}</span>
-        <button data-pay="${x.id}" class="pill ${x.bezahlt?"ok":"warn"}" style="border:none">${x.bezahlt?"bezahlt":"offen"}</button>
+        <button data-pay="${x.id}" class="pill ${x.bezahlt?"ok":"warn"}" style="border:none" title="${x.bezahlt&&x.bezahltAm?"bezahlt am "+deDate(x.bezahltAm):""}">${x.bezahlt?"bezahlt":"offen"}</button>
       </div>`).join("")}</div></div>`).join("")||`<div class="empty">Noch keine erledigten Stunden.</div>`}`;
 }
 
@@ -809,6 +813,22 @@ function bind(){
     const st=students().find(o=>o.id===sid); if(!st) return;
     const x=(st.sessions||[]).find(o=>o.id===xid); if(!x) return;
     sessionModal(st,x,true);   // Status im Dialog schon auf "erledigt"
+  });
+  document.querySelectorAll("[data-quickpay]").forEach(c=>c.onchange=async()=>{
+    const [sid,xid]=c.dataset.quickpay.split("|");
+    const st=students().find(o=>o.id===sid); if(!st) return;
+    const x=(st.sessions||[]).find(o=>o.id===xid); if(!x) return;
+    const dateInp=document.querySelector(`[data-quickpaydate="${c.dataset.quickpay}"]`);
+    x.bezahlt=c.checked;
+    x.bezahltAm=c.checked?(dateInp?.value||today()):"";
+    if(dateInp) dateInp.disabled=!c.checked;
+    await save();
+  });
+  document.querySelectorAll("[data-quickpaydate]").forEach(inp=>inp.onchange=async()=>{
+    const [sid,xid]=inp.dataset.quickpaydate.split("|");
+    const st=students().find(o=>o.id===sid); if(!st) return;
+    const x=(st.sessions||[]).find(o=>o.id===xid); if(!x) return;
+    x.bezahltAm=inp.value; await save();
   });
   const s=stu();
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
@@ -831,9 +851,9 @@ function bind(){
   document.querySelectorAll("[data-jdel]").forEach(b=>b.onclick=async()=>{
     if(confirm("Eintrag löschen?")){DB.jobs=jobs().filter(x=>x.id!==b.dataset.jdel);await save();render()}});
   document.querySelectorAll("[data-jpay]").forEach(b=>b.onclick=async()=>{
-    const x=jobs().find(y=>y.id===b.dataset.jpay);x.bezahlt=!x.bezahlt;await save();render()});
+    const x=jobs().find(y=>y.id===b.dataset.jpay);x.bezahlt=!x.bezahlt;x.bezahltAm=x.bezahlt?today():"";await save();render()});
   document.querySelectorAll("[data-jpayall]").forEach(b=>b.onclick=async()=>{
-    jobs().filter(x=>x.datum.startsWith(b.dataset.jpayall)).forEach(x=>x.bezahlt=true);await save();render()});
+    jobs().filter(x=>x.datum.startsWith(b.dataset.jpayall)).forEach(x=>{x.bezahlt=true;x.bezahltAm=x.bezahltAm||today();});await save();render()});
   on("editStudent",()=>studentModal(s));
   on("delStudent",()=>{ if(confirm(`"${s.name}" mit allen Daten unwiderruflich löschen?`)){
       DB.students=students().filter(x=>x.id!==s.id); sel=null; save().then(render);}});
@@ -852,9 +872,9 @@ function bind(){
   document.querySelectorAll("[data-dtopic]").forEach(b=>b.onclick=async()=>{
     if(confirm("Thema löschen?")){s.topics=s.topics.filter(x=>x.id!==b.dataset.dtopic);await save();render()}});
   document.querySelectorAll("[data-pay]").forEach(b=>b.onclick=async()=>{
-    const x=s.sessions.find(y=>y.id===b.dataset.pay);x.bezahlt=!x.bezahlt;await save();render()});
+    const x=s.sessions.find(y=>y.id===b.dataset.pay);x.bezahlt=!x.bezahlt;x.bezahltAm=x.bezahlt?today():"";await save();render()});
   document.querySelectorAll("[data-payall]").forEach(b=>b.onclick=async()=>{
-    s.sessions.filter(x=>x.status==="erledigt"&&x.datum.startsWith(b.dataset.payall)).forEach(x=>x.bezahlt=true);await save();render()});
+    s.sessions.filter(x=>x.status==="erledigt"&&x.datum.startsWith(b.dataset.payall)).forEach(x=>{x.bezahlt=true;x.bezahltAm=x.bezahltAm||today();});await save();render()});
 }
 
 function studentModal(s){
@@ -893,8 +913,12 @@ function sessionModal(s,x,nachbereiten){
      ${area("Plan für diese Stunde (Vorbereitung)","plan",v.plan)}
      ${topics.length?`<label>Behandelte Themen</label>${topics.map(t=>
         `<label class="chk"><input type="checkbox" name="themen" data-multi="1" value="${t.id}" ${(v.themen||[]).includes(t.id)?"checked":""}> ${esc(t.name)} <span class="pill">${t.status}</span></label>`).join("")}`:""}
-     <label class="chk"><input type="checkbox" name="bezahlt" ${v.bezahlt?"checked":""}> bezahlt</label>`,
+     <div class="row" style="align-items:center;gap:10px">
+       <label class="chk" style="margin:0"><input type="checkbox" name="bezahlt" ${v.bezahlt?"checked":""}> bezahlt</label>
+       <input type="date" name="bezahltAm" value="${v.bezahltAm||today()}" style="width:150px">
+     </div>`,
     d=>{ d.themen=d.themen||[];
+      if(!d.bezahlt) d.bezahltAm="";
       (s.topics||[]).forEach(t=>{if(d.themen.includes(t.id))t.updated=d.datum});
       if(n){(s.sessions ||= []).push({id:uid(),...d})} else Object.assign(x,d); });
 }
